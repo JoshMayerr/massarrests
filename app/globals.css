@@ -9,9 +9,14 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: "Helvetica", sans-serif;
-  --color-transit-red: #dc143c;
+  --color-transit-red: #da291c;
+  --color-transit-orange: #ed8b00;
+  --color-transit-green: #00843d;
+  --color-transit-blue: #003da5;
+  --color-transit-silver: #7c878e;
   --color-transit-gray: #f5f5f5;
-  --color-transit-border: #e5e5e5;
+  --color-transit-border: #000000;
+  --color-transit-light-border: #e5e5e5;
 }
 
 body {
@@ -21,27 +26,95 @@ body {
 }
 
 .transit-card {
-  border: 1px solid #e5e5e5;
+  border: 2px solid var(--color-transit-border);
   background: white;
   padding: 1.5rem;
 }
 
 .transit-header {
   font-size: 2rem;
-  font-weight: bolder;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: -0.02em;
+  color: #ffffff;
 }
 
 .transit-section {
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 900;
   text-transform: uppercase;
+  color: #000000;
 }
 
 .transit-data {
   font-size: 0.875rem;
-  font-weight: normal;
+  font-weight: 600;
+  color: #000000;
+}
+
+/* Transit Line Color Utilities */
+.transit-red-bar {
+  background-color: var(--color-transit-red);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.transit-orange-bar {
+  background-color: var(--color-transit-orange);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.transit-green-bar {
+  background-color: var(--color-transit-green);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.transit-blue-bar {
+  background-color: var(--color-transit-blue);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.transit-silver-bar {
+  background-color: var(--color-transit-silver);
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* Transit Header Styles */
+.transit-header-bar {
+  background-color: #000000;
+  color: white;
+  font-weight: 900;
+  text-transform: uppercase;
+  padding: 0.75rem 1rem;
+  border: 2px solid #000000;
+}
+
+.transit-status-bar {
+  background-color: var(--color-transit-green);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #000000;
+  font-size: 0.75rem;
+}
+
+/* High-contrast borders */
+.transit-border {
+  border: 2px solid var(--color-transit-border);
+}
+
+.transit-border-thick {
+  border: 3px solid var(--color-transit-border);
 }
 
 /* Custom scrollbar for sidebar */

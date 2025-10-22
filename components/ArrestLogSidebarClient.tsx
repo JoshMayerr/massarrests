@@ -10,41 +10,49 @@ interface ArrestLogSidebarClientProps {
 
 const getIncidentTypeColor = (incidentType: string) => {
   const colors: Record<string, string> = {
-    DUI: "bg-red-100 text-red-800 border-red-200",
-    Assault: "bg-orange-100 text-orange-800 border-orange-200",
-    Theft: "bg-blue-100 text-blue-800 border-blue-200",
-    "Drug Possession": "bg-purple-100 text-purple-800 border-purple-200",
-    Burglary: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    Robbery: "bg-red-100 text-red-800 border-red-200",
-    "Domestic Violence": "bg-pink-100 text-pink-800 border-pink-200",
-    Warrant: "bg-gray-100 text-gray-800 border-gray-200",
-    Fraud: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    DUI: "transit-red-bar",
+    Assault: "transit-orange-bar",
+    Theft: "transit-blue-bar",
+    "Drug Possession": "transit-silver-bar",
+    Burglary: "transit-green-bar",
+    Robbery: "transit-red-bar",
+    "Domestic Violence": "transit-orange-bar",
+    Warrant: "bg-black text-white",
+    Fraud: "transit-blue-bar",
   };
-  return colors[incidentType] || "bg-gray-100 text-gray-800 border-gray-200";
+  return colors[incidentType] || "bg-black text-white";
+};
+
+const getIncidentTypeBorderColor = (incidentType: string) => {
+  const borderColors: Record<string, string> = {
+    DUI: "border-l-red-500",
+    Assault: "border-l-orange-500",
+    Theft: "border-l-blue-500",
+    "Drug Possession": "border-l-gray-500",
+    Burglary: "border-l-green-500",
+    Robbery: "border-l-red-500",
+    "Domestic Violence": "border-l-orange-500",
+    Warrant: "border-l-black",
+    Fraud: "border-l-blue-500",
+  };
+  return borderColors[incidentType] || "border-l-black";
 };
 
 export default function ArrestLogSidebarClient({
   arrests,
 }: ArrestLogSidebarClientProps) {
   return (
-    <div className="h-full border-r border-gray-300 flex flex-col">
-      <div className="p-4 border-b border-gray-300 flex-shrink-0">
-        <h2 className="font-bold text-lg uppercase">
-          Recent Logs ({arrests.length})
+    <div className="h-full border-r-2 border-b-2 border-black flex flex-col">
+      <div className="bg-white border-b-2 border-black flex-shrink-0 p-4">
+        <h2 className="text-xl font-extrabold uppercase text-black tracking-tight flex items-center justify-between">
+          <span className="">RECENT ARREST LOGS</span>
+          <span className="text-sm font-bold uppercase bg-black text-white px-2 py-1">
+            {arrests.length}
+          </span>
         </h2>
-
-        {/* Last Updated Tag */}
-        <div className="mt-2">
-          <div className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1.5"></div>
-            <span className="transit-data text-[10px] text-gray-600">
-              Last updated: {new Date().toLocaleTimeString()}
-            </span>
-          </div>
-        </div>
       </div>
-      <div className="flex-1 overflow-y-auto sidebar-scrollbar">
-        <div className="divide-y divide-transit-border">
+      <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
+        <div className="divide-y-2 divide-black">
           {arrests.map((arrest) => {
             const arrestDate = new Date(arrest.date);
             const relativeTime = formatDistanceToNow(arrestDate, {
@@ -54,40 +62,37 @@ export default function ArrestLogSidebarClient({
             return (
               <div
                 key={arrest.id}
-                className="p-4 hover:bg-gray-50 transition-colors"
+                className={`p-4 hover:bg-gray-50 transition-colors border-l-4 ${getIncidentTypeBorderColor(
+                  arrest.incidentType
+                )} hover:shadow-sm`}
               >
-                {/* Header with time and incident type badge */}
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex flex-col">
-                    <span className="transit-data text-xs text-gray-500">
-                      {format(arrestDate, "MMM dd, yyyy")}
-                    </span>
-                    <span className="transit-data text-xs text-gray-400">
-                      {relativeTime}
-                    </span>
-                  </div>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded border ${getIncidentTypeColor(
+                {/* Header with incident type and date */}
+                <div className="flex justify-between items-center mb-3">
+                  <div
+                    className={`px-3 py-1 text-xs font-black uppercase border-2 border-black ${getIncidentTypeColor(
                       arrest.incidentType
                     )}`}
                   >
                     {arrest.incidentType}
+                  </div>
+                  <span className="transit-data text-sm font-black text-black">
+                    {format(arrestDate, "MMM dd, yyyy").toUpperCase()}
                   </span>
                 </div>
 
                 {/* Location */}
-                <div className="mb-2">
-                  <div className="transit-data font-medium text-sm">
+                <div className="mb-3">
+                  <div className="transit-data font-black text-sm uppercase text-black">
                     {arrest.city}
                   </div>
-                  <div className="transit-data text-xs text-gray-500">
-                    {arrest.county} County
+                  <div className="transit-data text-xs font-bold text-gray-600 uppercase">
+                    {arrest.county} COUNTY
                   </div>
                 </div>
 
                 {/* Description */}
-                <div className="mb-2">
-                  <p className="transit-data text-xs text-gray-700 leading-relaxed">
+                <div className="mb-3">
+                  <p className="transit-data text-xs font-semibold text-black leading-relaxed">
                     {arrest.description}
                   </p>
                 </div>
@@ -97,14 +102,14 @@ export default function ArrestLogSidebarClient({
                   {arrest.charges.slice(0, 2).map((charge, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded border border-gray-200"
+                      className="px-2 py-1 text-xs bg-black text-white font-bold uppercase border border-black"
                     >
                       {charge}
                     </span>
                   ))}
                   {arrest.charges.length > 2 && (
-                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded border border-gray-200">
-                      +{arrest.charges.length - 2} more
+                    <span className="px-2 py-1 text-xs bg-gray-600 text-white font-bold uppercase border border-black">
+                      +{arrest.charges.length - 2} MORE
                     </span>
                   )}
                 </div>

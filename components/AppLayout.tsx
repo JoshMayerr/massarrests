@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ArrestLogSidebar from "./ArrestLogSidebar";
+import ArrestLogSidebarClient from "./ArrestLogSidebarClient";
 import ArrestHeatmap from "./ArrestHeatmap";
 import StatsCharts from "./StatsCharts";
 import { ArrestLog } from "@/lib/mockData";
@@ -79,7 +79,7 @@ export default function AppLayout() {
       <div className="flex pt-20 min-h-screen">
         {/* Sidebar - Fixed width, full height, hidden on mobile */}
         <div className="w-80 flex-shrink-0 hidden lg:block">
-          <ArrestLogSidebar arrests={arrests} />
+          <ArrestLogSidebarClient arrests={arrests} />
         </div>
 
         {/* Main Content Area */}
