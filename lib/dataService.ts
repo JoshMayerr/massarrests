@@ -25,6 +25,7 @@ function getBaseUrl(): string {
 
 async function fetchArrests(): Promise<ArrestLog[]> {
   const baseUrl = getBaseUrl();
+  console.log("Fetching arrests from:", `${baseUrl}/api/arrests?limit=100`);
   const response = await fetch(`${baseUrl}/api/arrests?limit=100`, {
     cache: "no-store",
     headers: {
