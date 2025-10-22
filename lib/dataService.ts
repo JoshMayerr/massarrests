@@ -1,4 +1,11 @@
-import { ArrestLog } from "./mockData";
+import {
+  ArrestLog,
+  mockArrests,
+  getStats,
+  getIncidentTypeBreakdown,
+  getTopCities,
+  getTimelineData,
+} from "./mockData";
 
 interface AppData {
   arrests: ArrestLog[];
@@ -48,36 +55,55 @@ async function fetchStats(): Promise<{
   timelineData: Array<{ date: string; count: number }>;
 }> {
   const baseUrl = getBaseUrl();
-  const response = await fetch(`${baseUrl}/api/arrests/stats`, {
+  const url = `${baseUrl}/api/arrests/stats`;
+  console.log("Fetching stats from:", url);
+
+  const response = await fetch(url, {
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
     },
   });
 
+  console.log("Stats response status:", response.status, response.statusText);
+
   if (!response.ok) {
-    throw new Error("Failed to fetch stats data");
+    throw new Error(
+      `Failed to fetch stats data: ${response.status} ${response.statusText}`
+    );
   }
 
-  return await response.json();
+  const data = await response.json();
+  console.log("Stats data received:", data);
+  return data;
 }
 
 export async function getAppData(): Promise<AppData> {
   try {
-    const [arrests, statsData] = await Promise.all([
-      fetchArrests(),
-      fetchStats(),
-    ]);
+    // Use direct function calls instead of HTTP requests to avoid server-to-server issues
+    const arrests = mockArrests;
+    const stats = getStats();
+    const incidentBreakdown = getIncidentTypeBreakdown();
+    const topCities = getTopCities();
+    const timelineData = getTimelineData();
+
+    console.log("Using direct mock data functions:", {
+      arrestsCount: arrests.length,
+      stats,
+      hasIncidentBreakdown: Object.keys(incidentBreakdown).length > 0,
+      hasTopCities: topCities.length > 0,
+      hasTimelineData: timelineData.length > 0,
+    });
 
     return {
       arrests,
-      stats: statsData.stats,
-      incidentBreakdown: statsData.incidentBreakdown,
-      topCities: statsData.topCities,
-      timelineData: statsData.timelineData,
+      stats,
+      incidentBreakdown,
+      topCities,
+      timelineData,
     };
   } catch (error) {
-    console.error("Error fetching app data:", error);
+    console.error("Error getting app data:", error);
     // Return empty data as fallback
     return {
       arrests: [],
