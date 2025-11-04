@@ -54,8 +54,8 @@ export default function ArrestLogSidebarClient({
           </span>
         </h2>
         <div className="mt-3">
-          <FilterButton>
-            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center">
+          <FilterButton filters={filters}>
+            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center relative">
               Filter
             </div>
           </FilterButton>
