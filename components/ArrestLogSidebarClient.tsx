@@ -1,11 +1,13 @@
 "use client";
 
 import { ArrestLog } from "@/lib/mockData";
-import { format, formatDistanceToNow } from "date-fns";
-import { useState, useMemo } from "react";
+import { format } from "date-fns";
+import { Filters } from "@/lib/dataService";
+import FilterButton from "./FilterButton";
 
 interface ArrestLogSidebarClientProps {
   arrests: ArrestLog[];
+  filters?: Filters;
 }
 
 const getIncidentTypeColor = (incidentType: string) => {
@@ -40,24 +42,29 @@ const getIncidentTypeBorderColor = (incidentType: string) => {
 
 export default function ArrestLogSidebarClient({
   arrests,
+  filters,
 }: ArrestLogSidebarClientProps) {
   return (
     <div className="h-full border-r-2 border-b-2 border-black flex flex-col">
       <div className="bg-white border-b-2 border-black flex-shrink-0 p-4">
         <h2 className="text-xl font-extrabold uppercase text-black tracking-tight flex items-center justify-between">
-          <span className="">RECENT ARREST LOGS</span>
+          <span className="">ARREST LOGS</span>
           <span className="text-sm font-bold uppercase bg-black text-white px-2 py-1">
             {arrests.length}
           </span>
         </h2>
+        <div className="mt-3">
+          <FilterButton>
+            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center">
+              Filter
+            </div>
+          </FilterButton>
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
         <div className="divide-y-2 divide-black">
           {arrests.map((arrest) => {
             const arrestDate = new Date(arrest.date);
-            const relativeTime = formatDistanceToNow(arrestDate, {
-              addSuffix: true,
-            });
 
             return (
               <div

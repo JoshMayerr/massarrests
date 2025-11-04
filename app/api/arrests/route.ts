@@ -6,7 +6,10 @@ export async function GET(request: Request) {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "50");
   const city = searchParams.get("city");
+  const town = searchParams.get("town");
   const incidentType = searchParams.get("incidentType");
+  const dateFrom = searchParams.get("dateFrom");
+  const dateTo = searchParams.get("dateTo");
 
   let filteredArrests = [...mockArrests];
 
@@ -17,10 +20,36 @@ export async function GET(request: Request) {
     );
   }
 
+  // Support both 'city' and 'town' params for backward compatibility
+  if (town) {
+    filteredArrests = filteredArrests.filter((arrest) =>
+      arrest.city.toLowerCase().includes(town.toLowerCase())
+    );
+  }
+
   if (incidentType) {
     filteredArrests = filteredArrests.filter((arrest) =>
       arrest.incidentType.toLowerCase().includes(incidentType.toLowerCase())
     );
+  }
+
+  // Date filtering
+  if (dateFrom) {
+    const dateFromDate = new Date(dateFrom);
+    filteredArrests = filteredArrests.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      return arrestDate >= dateFromDate;
+    });
+  }
+
+  if (dateTo) {
+    const dateToDate = new Date(dateTo);
+    // Set to end of day for inclusive filtering
+    dateToDate.setHours(23, 59, 59, 999);
+    filteredArrests = filteredArrests.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      return arrestDate <= dateToDate;
+    });
   }
 
   // Sort by date (most recent first)

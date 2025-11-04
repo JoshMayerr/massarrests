@@ -1,18 +1,26 @@
 import { ReactNode } from "react";
 import ArrestLogSidebarClient from "./ArrestLogSidebarClient";
 import { ArrestLog } from "@/lib/mockData";
+import { Filters } from "@/lib/dataService";
+import FilterButton from "./FilterButton";
+import { ChevronsUpDown, Edit2, EditIcon } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
   arrests: ArrestLog[];
+  filters?: Filters;
 }
 
-export default function Layout({ children, arrests }: LayoutProps) {
+export default function Layout({ children, arrests, filters }: LayoutProps) {
+  const displayText = filters?.town
+    ? filters.town.toUpperCase()
+    : "MASSACHUSETTS";
+
   return (
     <div className="min-h-screen bg-white">
       {/* Sidebar - Fixed position, full height, hidden on mobile */}
       <div className="fixed left-0 top-0 w-80 h-screen hidden lg:block z-10">
-        <ArrestLogSidebarClient arrests={arrests} />
+        <ArrestLogSidebarClient arrests={arrests} filters={filters} />
       </div>
 
       {/* Main Content Area with Header */}
@@ -22,10 +30,13 @@ export default function Layout({ children, arrests }: LayoutProps) {
           <div className="px-6 py-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
-                <div className="transit-red-bar px-4 py-2 mr-4">
-                  MASSACHUSETTS
-                </div>
-                <h1 className="text-3xl font-extrabold uppercase text-black tracking-tight">
+                <FilterButton>
+                  <div className="transit-red-bar px-4 py-2 mr-4 cursor-pointer hover:opacity-80 transition-opacity flex items-center">
+                    <span className="text-2xl">{displayText}</span>
+                    <ChevronsUpDown className="w-4 h-4 ml-2 cursor-pointer hover:opacity-80 transition-opacity" />
+                  </div>
+                </FilterButton>
+                <h1 className="text-xl font-extrabold uppercase text-black tracking-tight">
                   POLICE LOGS
                 </h1>
               </div>

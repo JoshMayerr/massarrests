@@ -7,6 +7,12 @@ import {
   getTimelineData,
 } from "./mockData";
 
+export interface Filters {
+  town?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 interface AppData {
   arrests: ArrestLog[];
   stats: {
@@ -17,6 +23,38 @@ interface AppData {
   incidentBreakdown: Record<string, number>;
   topCities: Array<{ city: string; count: number }>;
   timelineData: Array<{ date: string; count: number }>;
+}
+
+function applyFilters(arrests: ArrestLog[], filters: Filters): ArrestLog[] {
+  let filtered = [...arrests];
+
+  // Filter by town
+  if (filters.town) {
+    filtered = filtered.filter((arrest) =>
+      arrest.city.toLowerCase().includes(filters.town!.toLowerCase())
+    );
+  }
+
+  // Filter by date range
+  if (filters.dateFrom) {
+    const dateFrom = new Date(filters.dateFrom);
+    filtered = filtered.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      return arrestDate >= dateFrom;
+    });
+  }
+
+  if (filters.dateTo) {
+    const dateTo = new Date(filters.dateTo);
+    // Set to end of day for inclusive filtering
+    dateTo.setHours(23, 59, 59, 999);
+    filtered = filtered.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      return arrestDate <= dateTo;
+    });
+  }
+
+  return filtered;
 }
 
 function getBaseUrl(): string {
@@ -78,17 +116,61 @@ async function fetchStats(): Promise<{
   return data;
 }
 
-export async function getAppData(): Promise<AppData> {
+export async function getAppData(filters: Filters = {}): Promise<AppData> {
   try {
-    // Use direct function calls instead of HTTP requests to avoid server-to-server issues
-    const arrests = mockArrests;
-    const stats = getStats();
-    const incidentBreakdown = getIncidentTypeBreakdown();
-    const topCities = getTopCities();
-    const timelineData = getTimelineData();
+    // Apply filters to arrests
+    const filteredArrests = applyFilters(mockArrests, filters);
 
-    console.log("Using direct mock data functions:", {
-      arrestsCount: arrests.length,
+    // Calculate stats from filtered data
+    const total = filteredArrests.length;
+    const thisWeek = filteredArrests.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return arrestDate >= weekAgo;
+    }).length;
+
+    const thisMonth = filteredArrests.filter((arrest) => {
+      const arrestDate = new Date(arrest.date);
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
+      return arrestDate >= monthAgo;
+    }).length;
+
+    const stats = { total, thisWeek, thisMonth };
+
+    // Calculate incident breakdown from filtered data
+    const incidentBreakdown: Record<string, number> = {};
+    filteredArrests.forEach((arrest) => {
+      incidentBreakdown[arrest.incidentType] =
+        (incidentBreakdown[arrest.incidentType] || 0) + 1;
+    });
+
+    // Calculate top cities from filtered data
+    const cityCounts: Record<string, number> = {};
+    filteredArrests.forEach((arrest) => {
+      cityCounts[arrest.city] = (cityCounts[arrest.city] || 0) + 1;
+    });
+
+    const topCities = Object.entries(cityCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([city, count]) => ({ city, count }));
+
+    // Calculate timeline data from filtered data
+    const timeline: Record<string, number> = {};
+    filteredArrests.forEach((arrest) => {
+      const date = new Date(arrest.date).toISOString().split("T")[0];
+      timeline[date] = (timeline[date] || 0) + 1;
+    });
+
+    const timelineData = Object.entries(timeline)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, count]) => ({ date, count }));
+
+    console.log("Using direct mock data functions with filters:", {
+      filters,
+      arrestsCount: filteredArrests.length,
       stats,
       hasIncidentBreakdown: Object.keys(incidentBreakdown).length > 0,
       hasTopCities: topCities.length > 0,
@@ -96,7 +178,7 @@ export async function getAppData(): Promise<AppData> {
     });
 
     return {
-      arrests,
+      arrests: filteredArrests,
       stats,
       incidentBreakdown,
       topCities,
