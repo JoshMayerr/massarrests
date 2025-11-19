@@ -81,7 +81,7 @@ function HeatmapLayer({ arrests }: { arrests: ArrestLog[] }) {
         },
       });
 
-      heatLayer.addTo(map);
+      //heatLayer.addTo(map);
     };
 
     // Add heatmap when map is ready

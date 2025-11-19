@@ -1,72 +1,32 @@
 import { NextResponse } from "next/server";
-import { mockArrests } from "@/lib/mockData";
+import { fetchPoliceLogs } from "@/lib/bigquery";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "50");
-  const city = searchParams.get("city");
-  const town = searchParams.get("town");
-  const incidentType = searchParams.get("incidentType");
-  const dateFrom = searchParams.get("dateFrom");
-  const dateTo = searchParams.get("dateTo");
+export async function GET(req: Request) {
+  console.log("API HERE IS GETTING CALLED")
+  const { searchParams } = new URL(req.url);
 
-  let filteredArrests = [...mockArrests];
+  const town = searchParams.get("town") || undefined;
+  const dateFrom = searchParams.get("dateFrom") || undefined;
+  const dateTo = searchParams.get("dateTo") || undefined;
 
-  // Apply filters
-  if (city) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.city.toLowerCase().includes(city.toLowerCase())
-    );
-  }
+  const rows = await fetchPoliceLogs({ town, dateFrom, dateTo });
 
-  // Support both 'city' and 'town' params for backward compatibility
-  if (town) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.city.toLowerCase().includes(town.toLowerCase())
-    );
-  }
+  // Convert BigQuery row into the ArrestLog shape your frontend expects
+  const arrests = rows.map((r: any, idx: number) => ({
+    id: idx + 1,
+    incidentType: r.call_reason || "Unknown",
+    date: r.date,
+    city: r.location ? parseCity(r.location) : "Unknown",
+    county: "MIDDLESEX", // you can improve this later
+    description: `${r.call_reason} — ${r.action}`,
+    charges: r.arrest_reference ? [r.arrest_reference] : [],
+  }));
 
-  if (incidentType) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.incidentType.toLowerCase().includes(incidentType.toLowerCase())
-    );
-  }
+  return NextResponse.json({ arrests });
+}
 
-  // Date filtering
-  if (dateFrom) {
-    const dateFromDate = new Date(dateFrom);
-    filteredArrests = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate >= dateFromDate;
-    });
-  }
-
-  if (dateTo) {
-    const dateToDate = new Date(dateTo);
-    // Set to end of day for inclusive filtering
-    dateToDate.setHours(23, 59, 59, 999);
-    filteredArrests = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate <= dateToDate;
-    });
-  }
-
-  // Sort by date (most recent first)
-  filteredArrests.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  // Pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedArrests = filteredArrests.slice(startIndex, endIndex);
-
-  return NextResponse.json({
-    arrests: paginatedArrests,
-    total: filteredArrests.length,
-    page,
-    limit,
-    totalPages: Math.ceil(filteredArrests.length / limit),
-  });
+function parseCity(raw: string) {
+  // Example: "[NAT 3072] 12 ROCKRIDGE RD - 12 ROCKRIDGE RD"
+  const match = raw.split("-")[0].trim().split(" ");
+  return match[match.length - 1] ?? "Unknown";
 }
