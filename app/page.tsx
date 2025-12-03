@@ -1,7 +1,7 @@
 import Layout from "@/components/Layout";
 import StatsCharts from "@/components/StatsCharts";
 import ArrestHeatmapWrapper from "@/components/ArrestHeatmapWrapper";
-import { getAppData } from "@/lib/dataService";
+import { getAppData, fetchHeatmapData } from "@/lib/dataService";
 
 interface HomeProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -22,18 +22,21 @@ export default async function Home({ searchParams }: HomeProps) {
     dateTo,
   };
 
-  const { arrests, stats, incidentBreakdown, topCities, timelineData } =
+  const { arrests, stats, topCharges, topCities, timelineData } =
     await getAppData(filters);
+
+  // Fetch heatmap data separately to get all arrests (not limited to 100)
+  const cityCounts = await fetchHeatmapData(filters);
 
   return (
     <Layout arrests={arrests} filters={filters}>
       {/* Heatmap */}
-      <ArrestHeatmapWrapper arrests={arrests} />
+      <ArrestHeatmapWrapper cityCounts={cityCounts} />
 
       {/* Charts and Stats */}
       <StatsCharts
         stats={stats}
-        incidentBreakdown={incidentBreakdown}
+        topCharges={topCharges}
         topCities={topCities}
         timelineData={timelineData}
       />

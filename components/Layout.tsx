@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import ArrestLogSidebarClient from "./ArrestLogSidebarClient";
-import { ArrestLog } from "@/lib/mockData";
+import { ArrestLog } from "@/lib/types";
 import { Filters } from "@/lib/dataService";
 import FilterButton from "./FilterButton";
 import { ChevronsUpDown, Edit2, EditIcon } from "lucide-react";

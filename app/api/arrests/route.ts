@@ -1,72 +1,156 @@
-import { NextResponse } from "next/server";
-import { mockArrests } from "@/lib/mockData";
+import { NextRequest, NextResponse } from "next/server";
+import { getBigQueryClient } from "@/lib/bigquery";
+import { ArrestLog, ArrestApiResponse } from "@/lib/types";
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
-  const limit = parseInt(searchParams.get("limit") || "50");
-  const city = searchParams.get("city");
-  const town = searchParams.get("town");
-  const incidentType = searchParams.get("incidentType");
-  const dateFrom = searchParams.get("dateFrom");
-  const dateTo = searchParams.get("dateTo");
+export const dynamic = "force-dynamic"; // Prevent static caching of this route
 
-  let filteredArrests = [...mockArrests];
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const city = searchParams.get("city");
+    const town = searchParams.get("town");
+    const search = searchParams.get("search") || "";
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
 
-  // Apply filters
-  if (city) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.city.toLowerCase().includes(city.toLowerCase())
-    );
-  }
+    // Initialize the authenticated BigQuery client
+    const bq = await getBigQueryClient();
 
-  // Support both 'city' and 'town' params for backward compatibility
-  if (town) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.city.toLowerCase().includes(town.toLowerCase())
-    );
-  }
+    // Construct the SQL query
+    // NOTE: Always use parameterized queries (@param) to prevent SQL injection
+    let query = `
+      SELECT
+        arrest_id, first_name, last_name, age, sex, race,
+        charges, arrest_date, arrest_time, city_town,
+        street_line, zip_code, processing_time, source_file
+      FROM \`xcc-473.police_logs.arrest_logs\`
+    `;
 
-  if (incidentType) {
-    filteredArrests = filteredArrests.filter((arrest) =>
-      arrest.incidentType.toLowerCase().includes(incidentType.toLowerCase())
-    );
-  }
+    const params: any = {};
+    const conditions: string[] = [];
 
-  // Date filtering
-  if (dateFrom) {
-    const dateFromDate = new Date(dateFrom);
-    filteredArrests = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate >= dateFromDate;
+    // Search filter (name or charges)
+    if (search) {
+      conditions.push(
+        `(first_name LIKE @search OR last_name LIKE @search OR charges LIKE @search)`
+      );
+      params.search = `%${search}%`;
+    }
+
+    // City/Town filter (support both 'city' and 'town' params for backward compatibility)
+    // Use LIKE to match variations like "NATICK", "Natick", "NATICK, MA"
+    const cityTownFilter = city || town;
+    if (cityTownFilter) {
+      conditions.push(`UPPER(city_town) LIKE CONCAT(UPPER(@cityTown), '%')`);
+      params.cityTown = cityTownFilter;
+    }
+
+    // Date range filters
+    if (dateFrom) {
+      conditions.push(`arrest_date >= @dateFrom`);
+      params.dateFrom = dateFrom;
+    }
+
+    if (dateTo) {
+      conditions.push(`arrest_date <= @dateTo`);
+      params.dateTo = dateTo;
+    }
+
+    // Add WHERE clause if we have conditions
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    // Order by date (most recent first) and add pagination
+    query += ` ORDER BY arrest_date DESC`;
+
+    // Calculate offset for pagination
+    const offset = (page - 1) * limit;
+    query += ` LIMIT @limit OFFSET @offset`;
+    params.limit = limit;
+    params.offset = offset;
+
+    // Run the query
+    const [rows] = await bq.query({
+      query,
+      params,
     });
-  }
 
-  if (dateTo) {
-    const dateToDate = new Date(dateTo);
-    // Set to end of day for inclusive filtering
-    dateToDate.setHours(23, 59, 59, 999);
-    filteredArrests = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate <= dateToDate;
+    // Get total count for pagination (separate query)
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM \`xcc-473.police_logs.arrest_logs\`
+    `;
+    const countParams: any = {};
+    const countConditions: string[] = [];
+
+    if (search) {
+      countConditions.push(
+        `(first_name LIKE @search OR last_name LIKE @search OR charges LIKE @search)`
+      );
+      countParams.search = `%${search}%`;
+    }
+
+    if (cityTownFilter) {
+      countConditions.push(
+        `UPPER(city_town) LIKE CONCAT(UPPER(@cityTown), '%')`
+      );
+      countParams.cityTown = cityTownFilter;
+    }
+
+    if (dateFrom) {
+      countConditions.push(`arrest_date >= @dateFrom`);
+      countParams.dateFrom = dateFrom;
+    }
+
+    if (dateTo) {
+      countConditions.push(`arrest_date <= @dateTo`);
+      countParams.dateTo = dateTo;
+    }
+
+    if (countConditions.length > 0) {
+      countQuery += ` WHERE ${countConditions.join(" AND ")}`;
+    }
+
+    const [countRows] = await bq.query({
+      query: countQuery,
+      params: countParams,
     });
+
+    const total = Number((countRows[0] as any).total);
+
+    return NextResponse.json({
+      arrests: rows as ArrestLog[],
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (error: any) {
+    console.error("BigQuery API Error:", error);
+    console.error("Error stack:", error.stack);
+
+    // Provide more helpful error messages
+    let errorMessage = "Failed to fetch arrest logs";
+    let errorDetails = error.message;
+
+    if (error.message?.includes("Missing GCP_SERVICE_ACCOUNT_KEY")) {
+      errorMessage = "BigQuery credentials not configured";
+      errorDetails =
+        "Please set GCP_SERVICE_ACCOUNT_KEY and GCP_PROJECT_ID environment variables";
+    } else if (
+      error.message?.includes("not found") ||
+      error.message?.includes("does not exist")
+    ) {
+      errorMessage = "BigQuery table not found";
+      errorDetails = `Table 'xcc-473.police_logs.arrest_logs' may not exist or you may not have access to it`;
+    }
+
+    return NextResponse.json(
+      { error: errorMessage, details: errorDetails },
+      { status: 500 }
+    );
   }
-
-  // Sort by date (most recent first)
-  filteredArrests.sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
-
-  // Pagination
-  const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedArrests = filteredArrests.slice(startIndex, endIndex);
-
-  return NextResponse.json({
-    arrests: paginatedArrests,
-    total: filteredArrests.length,
-    page,
-    limit,
-    totalPages: Math.ceil(filteredArrests.length / limit),
-  });
 }

@@ -1,56 +1,159 @@
 "use client";
 
-import { ArrestLog } from "@/lib/mockData";
+import { useState, useEffect } from "react";
+import { ArrestLog } from "@/lib/types";
 import { format } from "date-fns";
 import { Filters } from "@/lib/dataService";
 import FilterButton from "./FilterButton";
 
 interface ArrestLogSidebarClientProps {
-  arrests: ArrestLog[];
+  arrests?: ArrestLog[]; // Optional initial data
   filters?: Filters;
 }
 
-const getIncidentTypeColor = (incidentType: string) => {
-  const colors: Record<string, string> = {
-    DUI: "transit-red-bar",
-    Assault: "transit-orange-bar",
-    Theft: "transit-blue-bar",
-    "Drug Possession": "transit-silver-bar",
-    Burglary: "transit-green-bar",
-    Robbery: "transit-red-bar",
-    "Domestic Violence": "transit-orange-bar",
-    Warrant: "bg-black text-white",
-    Fraud: "transit-blue-bar",
-  };
-  return colors[incidentType] || "bg-black text-white";
+interface PaginationData {
+  arrests: ArrestLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// Parse charges string into array
+const parseCharges = (charges: string): string[] => {
+  if (!charges) return [];
+  return charges
+    .split(",")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
 };
 
-const getIncidentTypeBorderColor = (incidentType: string) => {
-  const borderColors: Record<string, string> = {
-    DUI: "border-l-red-500",
-    Assault: "border-l-orange-500",
-    Theft: "border-l-blue-500",
-    "Drug Possession": "border-l-gray-500",
-    Burglary: "border-l-green-500",
-    Robbery: "border-l-red-500",
-    "Domestic Violence": "border-l-orange-500",
-    Warrant: "border-l-black",
-    Fraud: "border-l-blue-500",
-  };
-  return borderColors[incidentType] || "border-l-black";
+// Get color based on first charge (for visual consistency)
+const getChargeColor = (charges: string[]) => {
+  const firstCharge = charges[0]?.toLowerCase() || "";
+  if (firstCharge.includes("oui") || firstCharge.includes("dui")) {
+    return "transit-red-bar";
+  }
+  if (firstCharge.includes("assault") || firstCharge.includes("a&b")) {
+    return "transit-orange-bar";
+  }
+  if (firstCharge.includes("theft") || firstCharge.includes("larceny")) {
+    return "transit-blue-bar";
+  }
+  if (firstCharge.includes("drug") || firstCharge.includes("possession")) {
+    return "transit-silver-bar";
+  }
+  if (firstCharge.includes("burglary")) {
+    return "transit-green-bar";
+  }
+  if (firstCharge.includes("robbery")) {
+    return "transit-red-bar";
+  }
+  if (firstCharge.includes("warrant")) {
+    return "bg-black text-white";
+  }
+  return "bg-black text-white";
+};
+
+const getChargeBorderColor = (charges: string[]) => {
+  const firstCharge = charges[0]?.toLowerCase() || "";
+  if (firstCharge.includes("oui") || firstCharge.includes("dui")) {
+    return "border-l-red-500";
+  }
+  if (firstCharge.includes("assault") || firstCharge.includes("a&b")) {
+    return "border-l-orange-500";
+  }
+  if (firstCharge.includes("theft") || firstCharge.includes("larceny")) {
+    return "border-l-blue-500";
+  }
+  if (firstCharge.includes("drug") || firstCharge.includes("possession")) {
+    return "border-l-gray-500";
+  }
+  if (firstCharge.includes("burglary")) {
+    return "border-l-green-500";
+  }
+  if (firstCharge.includes("robbery")) {
+    return "border-l-red-500";
+  }
+  return "border-l-black";
 };
 
 export default function ArrestLogSidebarClient({
-  arrests,
+  arrests: initialArrests,
   filters,
 }: ArrestLogSidebarClientProps) {
+  const [arrests, setArrests] = useState<ArrestLog[]>(initialArrests || []);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch paginated data
+  useEffect(() => {
+    const fetchArrests = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.append("page", currentPage.toString());
+        params.append("limit", "25");
+
+        if (filters?.town) {
+          params.append("town", filters.town);
+        }
+        if (filters?.dateFrom) {
+          params.append("dateFrom", filters.dateFrom);
+        }
+        if (filters?.dateTo) {
+          params.append("dateTo", filters.dateTo);
+        }
+
+        const response = await fetch(`/api/arrests?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch arrests");
+        }
+
+        const data = await response.json();
+        setArrests(data.arrests || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      } catch (error) {
+        console.error("Error fetching arrests:", error);
+        setArrests([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchArrests();
+  }, [currentPage, filters?.town, filters?.dateFrom, filters?.dateTo]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters?.town, filters?.dateFrom, filters?.dateTo]);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const startItem = total === 0 ? 0 : (currentPage - 1) * 25 + 1;
+  const endItem = Math.min(currentPage * 25, total);
+
   return (
     <div className="h-full border-r-2 border-b-2 border-black flex flex-col">
       <div className="bg-white border-b-2 border-black flex-shrink-0 p-4">
         <h2 className="text-xl font-extrabold uppercase text-black tracking-tight flex items-center justify-between">
           <span className="">ARREST LOGS</span>
           <span className="text-sm font-bold uppercase bg-black text-white px-2 py-1">
-            {arrests.length}
+            {total}
           </span>
         </h2>
         <div className="mt-3">
@@ -62,67 +165,142 @@ export default function ArrestLogSidebarClient({
         </div>
       </div>
       <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
-        <div className="divide-y-2 divide-black">
-          {arrests.map((arrest) => {
-            const arrestDate = new Date(arrest.date);
+        {isLoading ? (
+          <div className="p-4 text-center">
+            <div className="transit-data text-sm font-bold text-gray-600 uppercase">
+              Loading...
+            </div>
+          </div>
+        ) : arrests.length === 0 ? (
+          <div className="p-4 text-center">
+            <div className="transit-data text-sm font-bold text-gray-600 uppercase">
+              No arrests found
+            </div>
+          </div>
+        ) : (
+          <div className="divide-y-2 divide-black">
+            {arrests.map((arrest, index) => {
+              // Parse date from BigQuery DATE format: { value: "YYYY-MM-DD" }
+              let arrestDate: Date | null = null;
+              let isValidDate = false;
 
-            return (
-              <div
-                key={arrest.id}
-                className={`p-4 hover:bg-gray-50 transition-colors border-l-4 ${getIncidentTypeBorderColor(
-                  arrest.incidentType
-                )} hover:shadow-sm`}
-              >
-                {/* Header with incident type and date */}
-                <div className="flex justify-between items-center mb-3">
-                  <div
-                    className={`px-3 py-1 text-xs font-black uppercase border-2 border-black ${getIncidentTypeColor(
-                      arrest.incidentType
-                    )}`}
-                  >
-                    {arrest.incidentType}
-                  </div>
-                  <span className="transit-data text-sm font-black text-black">
-                    {format(arrestDate, "MMM dd, yyyy").toUpperCase()}
-                  </span>
-                </div>
+              if (arrest.arrest_date) {
+                try {
+                  const dateValue = arrest.arrest_date as any;
+                  // Extract date string from BigQuery DATE format
+                  const dateStr = dateValue?.value || dateValue;
+                  const [year, month, day] = String(dateStr)
+                    .split("-")
+                    .map(Number);
 
-                {/* Location */}
-                <div className="mb-3">
-                  <div className="transit-data font-black text-sm uppercase text-black">
-                    {arrest.city}
-                  </div>
-                  <div className="transit-data text-xs font-bold text-gray-600 uppercase">
-                    {arrest.county} COUNTY
-                  </div>
-                </div>
+                  if (year && month && day) {
+                    arrestDate = new Date(year, month - 1, day);
+                    isValidDate = !isNaN(arrestDate.getTime());
+                  }
+                } catch {
+                  arrestDate = null;
+                  isValidDate = false;
+                }
+              }
+              const charges = parseCharges(arrest.charges);
+              const chargeColor = getChargeColor(charges);
+              const chargeBorderColor = getChargeBorderColor(charges);
 
-                {/* Description */}
-                <div className="mb-3">
-                  <p className="transit-data text-xs font-semibold text-black leading-relaxed">
-                    {arrest.description}
-                  </p>
-                </div>
-
-                {/* Charges */}
-                <div className="flex flex-wrap gap-1">
-                  {arrest.charges.slice(0, 2).map((charge, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 text-xs bg-black text-white font-bold uppercase border border-black"
-                    >
-                      {charge}
+              return (
+                <div
+                  key={`${arrest.arrest_id}-${arrest.arrest_date}-${arrest.first_name}-${arrest.last_name}-${index}`}
+                  className={`p-4 hover:bg-gray-50 transition-colors border-l-4 ${chargeBorderColor} hover:shadow-sm`}
+                >
+                  {/* Header with name and date */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex-1">
+                      <div className="transit-data font-black text-sm uppercase text-black">
+                        {arrest.first_name} {arrest.last_name}
+                      </div>
+                      <div className="transit-data text-xs font-bold text-gray-600 uppercase">
+                        {arrest.age} • {arrest.sex} • {arrest.race}
+                      </div>
+                    </div>
+                    <span className="transit-data text-sm font-black text-black ml-2">
+                      {isValidDate && arrestDate
+                        ? format(arrestDate, "MMM dd, yyyy").toUpperCase()
+                        : "N/A"}
                     </span>
-                  ))}
-                  {arrest.charges.length > 2 && (
-                    <span className="px-2 py-1 text-xs bg-gray-600 text-white font-bold uppercase border border-black">
-                      +{arrest.charges.length - 2} MORE
-                    </span>
-                  )}
+                  </div>
+
+                  {/* Location */}
+                  <div className="mb-3">
+                    <div className="transit-data font-black text-sm uppercase text-black">
+                      {arrest.city_town}
+                      {arrest.zip_code && (
+                        <span className="text-gray-600 ml-1">
+                          • {arrest.zip_code}
+                        </span>
+                      )}
+                    </div>
+                    {arrest.street_line && (
+                      <div className="transit-data text-xs font-bold text-gray-600 uppercase">
+                        {arrest.street_line}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Charges */}
+                  <div className="flex flex-wrap gap-1">
+                    {charges.slice(0, 2).map((charge, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs bg-black text-white font-bold uppercase border border-black"
+                      >
+                        {charge}
+                      </span>
+                    ))}
+                    {charges.length > 2 && (
+                      <span className="px-2 py-1 text-xs bg-gray-600 text-white font-bold uppercase border border-black">
+                        +{charges.length - 2} MORE
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination Footer - Fixed at bottom */}
+      <div className="bg-white border-t-2 border-black flex-shrink-0 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="transit-data text-xs font-bold text-gray-600 uppercase">
+            Showing {startItem}-{endItem} of {total}
+          </div>
+          <div className="transit-data text-xs font-bold text-black uppercase">
+            Page {currentPage} of {totalPages}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1 || isLoading}
+            className={`flex-1 px-4 py-2 border-2 border-black font-bold uppercase text-sm transition-colors ${
+              currentPage === 1 || isLoading
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-white text-black hover:bg-gray-100"
+            }`}
+          >
+            Previous
+          </button>
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages || isLoading}
+            className={`flex-1 px-4 py-2 border-2 border-black font-bold uppercase text-sm transition-colors ${
+              currentPage === totalPages || isLoading
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-black text-white hover:bg-gray-800"
+            }`}
+          >
+            Next
+          </button>
         </div>
       </div>
     </div>

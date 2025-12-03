@@ -1,11 +1,4 @@
-import {
-  ArrestLog,
-  mockArrests,
-  getStats,
-  getIncidentTypeBreakdown,
-  getTopCities,
-  getTimelineData,
-} from "./mockData";
+import { ArrestLog } from "./types";
 
 export interface Filters {
   town?: string;
@@ -20,41 +13,9 @@ interface AppData {
     thisWeek: number;
     thisMonth: number;
   };
-  incidentBreakdown: Record<string, number>;
+  topCharges: Array<{ charge: string; count: number }>;
   topCities: Array<{ city: string; count: number }>;
   timelineData: Array<{ date: string; count: number }>;
-}
-
-function applyFilters(arrests: ArrestLog[], filters: Filters): ArrestLog[] {
-  let filtered = [...arrests];
-
-  // Filter by town
-  if (filters.town) {
-    filtered = filtered.filter((arrest) =>
-      arrest.city.toLowerCase().includes(filters.town!.toLowerCase())
-    );
-  }
-
-  // Filter by date range
-  if (filters.dateFrom) {
-    const dateFrom = new Date(filters.dateFrom);
-    filtered = filtered.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate >= dateFrom;
-    });
-  }
-
-  if (filters.dateTo) {
-    const dateTo = new Date(filters.dateTo);
-    // Set to end of day for inclusive filtering
-    dateTo.setHours(23, 59, 59, 999);
-    filtered = filtered.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      return arrestDate <= dateTo;
-    });
-  }
-
-  return filtered;
 }
 
 function getBaseUrl(): string {
@@ -68,10 +29,27 @@ function getBaseUrl(): string {
   );
 }
 
-async function fetchArrests(): Promise<ArrestLog[]> {
+async function fetchArrests(filters: Filters = {}): Promise<ArrestLog[]> {
   const baseUrl = getBaseUrl();
-  console.log("Fetching arrests from:", `${baseUrl}/api/arrests?limit=100`);
-  const response = await fetch(`${baseUrl}/api/arrests?limit=100`, {
+  const params = new URLSearchParams();
+
+  params.append("limit", "100");
+  params.append("page", "1");
+
+  if (filters.town) {
+    params.append("town", filters.town);
+  }
+  if (filters.dateFrom) {
+    params.append("dateFrom", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.append("dateTo", filters.dateTo);
+  }
+
+  const url = `${baseUrl}/api/arrests?${params.toString()}`;
+  console.log("Fetching arrests from:", url);
+
+  const response = await fetch(url, {
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
@@ -79,21 +57,52 @@ async function fetchArrests(): Promise<ArrestLog[]> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch arrests data");
+    const errorText = await response.text();
+    let errorDetails;
+    try {
+      errorDetails = JSON.parse(errorText);
+    } catch {
+      errorDetails = errorText;
+    }
+    console.error("Failed to fetch arrests data:", {
+      status: response.status,
+      statusText: response.statusText,
+      url,
+      error: errorDetails,
+    });
+    throw new Error(
+      `Failed to fetch arrests data: ${response.status} ${
+        response.statusText
+      }. ${errorDetails?.error || errorDetails?.details || errorText}`
+    );
   }
 
   const data = await response.json();
-  return data.arrests;
+  return data.arrests || [];
 }
 
-async function fetchStats(): Promise<{
+async function fetchStats(filters: Filters = {}): Promise<{
   stats: { total: number; thisWeek: number; thisMonth: number };
-  incidentBreakdown: Record<string, number>;
+  topCharges: Array<{ charge: string; count: number }>;
   topCities: Array<{ city: string; count: number }>;
   timelineData: Array<{ date: string; count: number }>;
 }> {
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/api/arrests/stats`;
+  const params = new URLSearchParams();
+
+  if (filters.town) {
+    params.append("town", filters.town);
+  }
+  if (filters.dateFrom) {
+    params.append("dateFrom", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.append("dateTo", filters.dateTo);
+  }
+
+  const url = `${baseUrl}/api/arrests/stats${
+    params.toString() ? `?${params.toString()}` : ""
+  }`;
   console.log("Fetching stats from:", url);
 
   const response = await fetch(url, {
@@ -116,73 +125,82 @@ async function fetchStats(): Promise<{
   return data;
 }
 
+export async function fetchHeatmapData(
+  filters: Filters = {}
+): Promise<Array<{ city: string; count: number }>> {
+  const baseUrl = getBaseUrl();
+  const params = new URLSearchParams();
+
+  if (filters.town) {
+    params.append("town", filters.town);
+  }
+  if (filters.dateFrom) {
+    params.append("dateFrom", filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    params.append("dateTo", filters.dateTo);
+  }
+
+  const url = `${baseUrl}/api/arrests/heatmap${
+    params.toString() ? `?${params.toString()}` : ""
+  }`;
+  console.log("Fetching heatmap data from:", url);
+
+  const response = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorDetails;
+    try {
+      errorDetails = JSON.parse(errorText);
+    } catch {
+      errorDetails = errorText;
+    }
+    console.error("Failed to fetch heatmap data:", {
+      status: response.status,
+      statusText: response.statusText,
+      url,
+      error: errorDetails,
+    });
+    throw new Error(
+      `Failed to fetch heatmap data: ${response.status} ${
+        response.statusText
+      }. ${errorDetails?.error || errorDetails?.details || errorText}`
+    );
+  }
+
+  const data = await response.json();
+  return data.cityCounts || [];
+}
+
 export async function getAppData(filters: Filters = {}): Promise<AppData> {
   try {
-    // Apply filters to arrests
-    const filteredArrests = applyFilters(mockArrests, filters);
+    // Fetch arrests and stats in parallel
+    const [arrests, statsData] = await Promise.all([
+      fetchArrests(filters),
+      fetchStats(filters),
+    ]);
 
-    // Calculate stats from filtered data
-    const total = filteredArrests.length;
-    const thisWeek = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      return arrestDate >= weekAgo;
-    }).length;
-
-    const thisMonth = filteredArrests.filter((arrest) => {
-      const arrestDate = new Date(arrest.date);
-      const monthAgo = new Date();
-      monthAgo.setDate(monthAgo.getDate() - 30);
-      return arrestDate >= monthAgo;
-    }).length;
-
-    const stats = { total, thisWeek, thisMonth };
-
-    // Calculate incident breakdown from filtered data
-    const incidentBreakdown: Record<string, number> = {};
-    filteredArrests.forEach((arrest) => {
-      incidentBreakdown[arrest.incidentType] =
-        (incidentBreakdown[arrest.incidentType] || 0) + 1;
-    });
-
-    // Calculate top cities from filtered data
-    const cityCounts: Record<string, number> = {};
-    filteredArrests.forEach((arrest) => {
-      cityCounts[arrest.city] = (cityCounts[arrest.city] || 0) + 1;
-    });
-
-    const topCities = Object.entries(cityCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([city, count]) => ({ city, count }));
-
-    // Calculate timeline data from filtered data
-    const timeline: Record<string, number> = {};
-    filteredArrests.forEach((arrest) => {
-      const date = new Date(arrest.date).toISOString().split("T")[0];
-      timeline[date] = (timeline[date] || 0) + 1;
-    });
-
-    const timelineData = Object.entries(timeline)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => ({ date, count }));
-
-    console.log("Using direct mock data functions with filters:", {
+    console.log("Fetched app data:", {
       filters,
-      arrestsCount: filteredArrests.length,
-      stats,
-      hasIncidentBreakdown: Object.keys(incidentBreakdown).length > 0,
-      hasTopCities: topCities.length > 0,
-      hasTimelineData: timelineData.length > 0,
+      arrestsCount: arrests.length,
+      stats: statsData.stats,
+      topChargesCount: statsData.topCharges.length,
+      topCitiesCount: statsData.topCities.length,
+      timelineDataCount: statsData.timelineData.length,
     });
 
     return {
-      arrests: filteredArrests,
-      stats,
-      incidentBreakdown,
-      topCities,
-      timelineData,
+      arrests,
+      stats: statsData.stats,
+      topCharges: statsData.topCharges,
+      topCities: statsData.topCities,
+      timelineData: statsData.timelineData,
     };
   } catch (error) {
     console.error("Error getting app data:", error);
@@ -190,7 +208,7 @@ export async function getAppData(filters: Filters = {}): Promise<AppData> {
     return {
       arrests: [],
       stats: { total: 0, thisWeek: 0, thisMonth: 0 },
-      incidentBreakdown: {},
+      topCharges: [],
       topCities: [],
       timelineData: [],
     };

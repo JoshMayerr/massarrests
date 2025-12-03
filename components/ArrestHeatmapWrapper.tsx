@@ -1,10 +1,9 @@
 "use client";
 
-import { ArrestLog } from "@/lib/mockData";
 import dynamic from "next/dynamic";
 
 interface ArrestHeatmapWrapperProps {
-  arrests: ArrestLog[];
+  cityCounts: Array<{ city: string; count: number }>;
 }
 
 // Dynamic import for ArrestHeatmap to ensure client-side rendering
@@ -31,7 +30,7 @@ const ArrestHeatmap = dynamic(
 );
 
 export default function ArrestHeatmapWrapper({
-  arrests,
+  cityCounts,
 }: ArrestHeatmapWrapperProps) {
-  return <ArrestHeatmap arrests={arrests} />;
+  return <ArrestHeatmap cityCounts={cityCounts} />;
 }

@@ -74,6 +74,7 @@ const MASSACHUSETTS_TOWNS = [
   "Reading",
   "Wakefield",
   "Melrose",
+  "Natick",
   "Stoneham",
   "Winchester",
 ].sort();
@@ -215,7 +216,9 @@ export default function FilterModal({ open, onOpenChange }: FilterModalProps) {
                                 <Check
                                   className={cn(
                                     "mr-2 h-4 w-4",
-                                    field.value === "" ? "opacity-100" : "opacity-0"
+                                    field.value === ""
+                                      ? "opacity-100"
+                                      : "opacity-0"
                                   )}
                                 />
                                 All Towns

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import ArrestLogSidebarClient from "./ArrestLogSidebarClient";
 import ArrestHeatmap from "./ArrestHeatmap";
 import StatsCharts from "./StatsCharts";
-import { ArrestLog } from "@/lib/mockData";
+import { ArrestLog } from "@/lib/types";
 
 export default function AppLayout() {
   const [arrests, setArrests] = useState<ArrestLog[]>([]);
@@ -13,9 +13,9 @@ export default function AppLayout() {
     thisWeek: 0,
     thisMonth: 0,
   });
-  const [incidentBreakdown, setIncidentBreakdown] = useState<
-    Record<string, number>
-  >({});
+  const [topCharges, setTopCharges] = useState<
+    Array<{ charge: string; count: number }>
+  >([]);
   const [topCities, setTopCities] = useState<
     Array<{ city: string; count: number }>
   >([]);
@@ -37,7 +37,7 @@ export default function AppLayout() {
 
         setArrests(arrestsData.arrests);
         setStats(statsData.stats);
-        setIncidentBreakdown(statsData.incidentBreakdown);
+        setTopCharges(statsData.topCharges || []);
         setTopCities(statsData.topCities);
         setTimelineData(statsData.timelineData);
       } catch (error) {
@@ -91,7 +91,7 @@ export default function AppLayout() {
             {/* Charts and Stats */}
             <StatsCharts
               stats={stats}
-              incidentBreakdown={incidentBreakdown}
+              topCharges={topCharges}
               topCities={topCities}
               timelineData={timelineData}
             />

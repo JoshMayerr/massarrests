@@ -1,20 +1,9 @@
 "use client";
 
-import { ArrestLog } from "@/lib/mockData";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-
-// Import leaflet.heat
-import "leaflet.heat";
-
-// Extend Leaflet types
-declare module "leaflet" {
-  namespace L {
-    function heatLayer(latlngs: number[][], options?: any): any;
-  }
-}
+import { getCityCoordinates } from "@/lib/cityCoordinates";
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -28,79 +17,48 @@ L.Icon.Default.mergeOptions({
 });
 
 interface ArrestHeatmapProps {
-  arrests: ArrestLog[];
+  cityCounts: Array<{ city: string; count: number }>;
 }
 
-// Custom component to add heatmap layer
-function HeatmapLayer({ arrests }: { arrests: ArrestLog[] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    let heatLayer: any = null;
-
-    // Wait for map to be ready
-    const addHeatmap = () => {
-      // Convert arrests to heatmap format: [lat, lng, intensity]
-      // Create balanced intensity scaling
-      const clusteredData: [number, number, number][] = [];
-      const cityCounts: { [key: string]: number } = {};
-
-      // Count arrests per city
-      arrests.forEach((arrest) => {
-        cityCounts[arrest.city] = (cityCounts[arrest.city] || 0) + 1;
-      });
-
-      // Create heat data with higher intensity for better zoom visibility
-      arrests.forEach((arrest) => {
-        const cityCount = cityCounts[arrest.city];
-        // Higher base intensity for better visibility at all zoom levels
-        const baseIntensity = 2.0;
-        const cityMultiplier = Math.min(cityCount * 1.2, 4.0); // Cap city multiplier at 4.0
-        const intensity = baseIntensity + cityMultiplier;
-        clusteredData.push([arrest.lat, arrest.lng, intensity]);
-      });
-
-      // Debug info (can be removed in production)
-      // console.log("Heatmap data:", clusteredData);
-      // console.log("Number of arrests:", arrests.length);
-      // console.log("City counts:", cityCounts);
-
-      // Use leaflet.heat with settings optimized for all zoom levels
-      heatLayer = L.heatLayer(clusteredData as [number, number, number][], {
-        radius: 30, // Smaller radius for better zoom behavior
-        blur: 12, // Less blur for sharper definition when zoomed
-        maxZoom: 18, // Allow full zoom range
-        minOpacity: 0.4, // Higher minimum opacity for better visibility
-        gradient: {
-          0.0: "transparent", // Start with transparent
-          0.1: "blue", // Blue at very low intensity
-          0.3: "cyan", // Cyan at low intensity
-          0.5: "lime", // Lime at medium intensity
-          0.7: "yellow", // Yellow at high intensity
-          1.0: "red", // Red at maximum intensity
-        },
-      });
-
-      heatLayer.addTo(map);
-    };
-
-    // Add heatmap when map is ready
-    if (map) {
-      addHeatmap();
-    }
-
-    // Cleanup function
-    return () => {
-      if (heatLayer) {
-        map.removeLayer(heatLayer);
-      }
-    };
-  }, [map, arrests]);
-
-  return null;
+// Custom marker icon with count badge
+function createMarkerIcon(count: number) {
+  return L.divIcon({
+    className: "custom-marker",
+    html: `
+      <div style="
+        background-color: #DA291C;
+        color: white;
+        border: 3px solid black;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      ">
+        ${count}
+      </div>
+    `,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+  });
 }
 
-export default function ArrestHeatmap({ arrests }: ArrestHeatmapProps) {
+export default function ArrestHeatmap({ cityCounts }: ArrestHeatmapProps) {
+  // Create markers for each city with coordinates
+  const cityMarkers = cityCounts.map(({ city, count }) => {
+    const coordinates = getCityCoordinates(city);
+    return {
+      city,
+      count,
+      coordinates,
+    };
+  });
+
   return (
     <div className="">
       <h3 className="transit-section mb-2">Geographic Distribution</h3>
@@ -114,9 +72,30 @@ export default function ArrestHeatmap({ arrests }: ArrestHeatmapProps) {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <HeatmapLayer arrests={arrests} />
+          {cityMarkers.map((marker) => (
+            <Marker
+              key={marker.city}
+              position={marker.coordinates}
+              icon={createMarkerIcon(marker.count)}
+            >
+              <Popup>
+                <div className="text-center">
+                  <div className="font-bold text-lg">{marker.city}</div>
+                  <div className="text-sm text-gray-600">
+                    {marker.count} {marker.count === 1 ? "arrest" : "arrests"}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
         </MapContainer>
       </div>
+      <style jsx global>{`
+        .custom-marker {
+          background: transparent;
+          border: none;
+        }
+      `}</style>
     </div>
   );
 }

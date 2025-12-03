@@ -17,23 +17,22 @@ interface StatsChartsProps {
     thisWeek: number;
     thisMonth: number;
   };
-  incidentBreakdown: Record<string, number>;
+  topCharges: Array<{ charge: string; count: number }>;
   topCities: Array<{ city: string; count: number }>;
   timelineData: Array<{ date: string; count: number }>;
 }
 
 export default function StatsCharts({
   stats,
-  incidentBreakdown,
+  topCharges,
   topCities,
   timelineData,
 }: StatsChartsProps) {
-  const incidentData = Object.entries(incidentBreakdown).map(
-    ([type, count]) => ({
-      type,
-      count,
-    })
-  );
+  // Prepare charges data for the chart (limit to top 10 for readability)
+  const chargesData = topCharges.slice(0, 10).map((item) => ({
+    charge: item.charge.length > 30 ? item.charge.substring(0, 30) + "..." : item.charge,
+    count: item.count,
+  }));
 
   return (
     <div className="space-y-8">
@@ -119,18 +118,18 @@ export default function StatsCharts({
           </ResponsiveContainer>
         </div>
 
-        {/* Incident Types */}
+        {/* Top Charges */}
         <div className="transit-card border-l-4 border-l-green-500">
-          <h3 className="transit-section mb-4">INCIDENT TYPES</h3>
+          <h3 className="transit-section mb-4">TOP CHARGES</h3>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={incidentData}>
+            <BarChart data={chargesData}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 stroke="#000000"
                 strokeWidth={2}
               />
               <XAxis
-                dataKey="type"
+                dataKey="charge"
                 tick={{ fontSize: 12, fontWeight: "bold" }}
                 angle={-45}
                 textAnchor="end"
