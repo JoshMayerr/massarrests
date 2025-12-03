@@ -157,11 +157,144 @@ async function getStatsData(
     .sort((a, b) => b.count - a.count)
     .slice(0, 20); // Top 20 charges
 
+  // Get day of week data
+  const dayOfWeekQuery = `
+    SELECT
+      EXTRACT(DAYOFWEEK FROM arrest_date) as day_of_week,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${whereClause}
+    GROUP BY day_of_week
+    ORDER BY day_of_week
+  `;
+
+  const [dayOfWeekRows] = await bq.query({
+    query: dayOfWeekQuery,
+    params,
+  });
+
+  // Map day numbers to day names (1=Sunday, 7=Saturday in BigQuery)
+  const dayNames = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const dayOfWeekData = dayOfWeekRows.map((row: any) => {
+    const dayNum = Number(row.day_of_week);
+    return {
+      day: dayNames[dayNum - 1] || `Day ${dayNum}`,
+      count: Number(row.count),
+    };
+  });
+
+  // Get age distribution
+  const ageConditions = [...conditions];
+  ageConditions.push("age IS NOT NULL");
+  const ageWhereClause =
+    ageConditions.length > 0 ? `WHERE ${ageConditions.join(" AND ")}` : "";
+
+  const ageDistributionQuery = `
+    SELECT
+      CASE
+        WHEN age < 18 THEN '0-17'
+        WHEN age < 25 THEN '18-24'
+        WHEN age < 35 THEN '25-34'
+        WHEN age < 45 THEN '35-44'
+        WHEN age < 55 THEN '45-54'
+        WHEN age < 65 THEN '55-64'
+        ELSE '65+'
+      END as age_range,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${ageWhereClause}
+    GROUP BY age_range
+    ORDER BY
+      CASE age_range
+        WHEN '0-17' THEN 1
+        WHEN '18-24' THEN 2
+        WHEN '25-34' THEN 3
+        WHEN '35-44' THEN 4
+        WHEN '45-54' THEN 5
+        WHEN '55-64' THEN 6
+        WHEN '65+' THEN 7
+      END
+  `;
+
+  const [ageDistributionRows] = await bq.query({
+    query: ageDistributionQuery,
+    params,
+  });
+
+  const ageDistribution = ageDistributionRows.map((row: any) => ({
+    ageRange: row.age_range,
+    count: Number(row.count),
+  }));
+
+  // Get sex breakdown
+  const sexConditions = [...conditions];
+  sexConditions.push("sex IS NOT NULL");
+  const sexWhereClause =
+    sexConditions.length > 0 ? `WHERE ${sexConditions.join(" AND ")}` : "";
+
+  const sexBreakdownQuery = `
+    SELECT
+      sex,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${sexWhereClause}
+    GROUP BY sex
+    ORDER BY count DESC
+  `;
+
+  const [sexBreakdownRows] = await bq.query({
+    query: sexBreakdownQuery,
+    params,
+  });
+
+  const sexBreakdown = sexBreakdownRows.map((row: any) => ({
+    sex: row.sex || "Unknown",
+    count: Number(row.count),
+  }));
+
+  // Get race breakdown
+  const raceConditions = [...conditions];
+  raceConditions.push("race IS NOT NULL");
+  const raceWhereClause =
+    raceConditions.length > 0 ? `WHERE ${raceConditions.join(" AND ")}` : "";
+
+  const raceBreakdownQuery = `
+    SELECT
+      race,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${raceWhereClause}
+    GROUP BY race
+    ORDER BY count DESC
+  `;
+
+  const [raceBreakdownRows] = await bq.query({
+    query: raceBreakdownQuery,
+    params,
+  });
+
+  const raceBreakdown = raceBreakdownRows.map((row: any) => ({
+    race: row.race || "Unknown",
+    count: Number(row.count),
+  }));
+
   return {
     stats,
     topCharges,
     topCities,
     timelineData,
+    dayOfWeekData,
+    ageDistribution,
+    sexBreakdown,
+    raceBreakdown,
   };
 }
 

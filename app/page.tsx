@@ -22,8 +22,18 @@ export default async function Home({ searchParams }: HomeProps) {
     dateTo,
   };
 
-  const { arrests, total, stats, topCharges, topCities, timelineData } =
-    await getAppData(filters);
+  const {
+    arrests,
+    total,
+    stats,
+    topCharges,
+    topCities,
+    timelineData,
+    dayOfWeekData,
+    ageDistribution,
+    sexBreakdown,
+    raceBreakdown,
+  } = await getAppData(filters);
 
   // Fetch heatmap data separately to get all arrests (not limited to 100)
   const cityCounts = await fetchHeatmapData(filters);
@@ -48,6 +58,10 @@ export default async function Home({ searchParams }: HomeProps) {
         topCharges={topCharges}
         topCities={topCities}
         timelineData={timelineData}
+        dayOfWeekData={dayOfWeekData}
+        ageDistribution={ageDistribution}
+        sexBreakdown={sexBreakdown}
+        raceBreakdown={raceBreakdown}
       />
     </Layout>
   );
