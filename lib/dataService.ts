@@ -39,7 +39,7 @@ interface AppData {
   raceBreakdown: Array<{ race: string; count: number }>;
 }
 
-async function fetchArrests(filters: Filters = {}): Promise<{
+export async function fetchArrests(filters: Filters = {}): Promise<{
   arrests: ArrestLog[];
   total: number;
 }> {
@@ -109,7 +109,7 @@ async function fetchArrests(filters: Filters = {}): Promise<{
   };
 }
 
-async function fetchStats(filters: Filters = {}): Promise<{
+export async function fetchStats(filters: Filters = {}): Promise<{
   stats: { total: number; thisWeek: number; thisMonth: number };
   topCharges: Array<{ charge: string; count: number }>;
   topCities: Array<{ city: string; count: number }>;
@@ -143,21 +143,153 @@ async function fetchStats(filters: Filters = {}): Promise<{
   const whereClause =
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // Calculate stats: total, thisWeek, thisMonth
-  const statsQuery = `
-    SELECT
-      COUNT(*) as total,
-      COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) as thisWeek,
-      COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) as thisMonth
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${whereClause}
-  `;
+  // Prepare conditions for age, sex, and race queries
+  const ageConditions = [...conditions];
+  ageConditions.push("age IS NOT NULL");
+  const ageWhereClause =
+    ageConditions.length > 0 ? `WHERE ${ageConditions.join(" AND ")}` : "";
 
-  const [statsRows] = await bq.query({
-    query: statsQuery,
-    params,
-  });
+  const sexConditions = [...conditions];
+  sexConditions.push("sex IS NOT NULL");
+  const sexWhereClause =
+    sexConditions.length > 0 ? `WHERE ${sexConditions.join(" AND ")}` : "";
 
+  const raceConditions = [...conditions];
+  raceConditions.push("race IS NOT NULL");
+  const raceWhereClause =
+    raceConditions.length > 0 ? `WHERE ${raceConditions.join(" AND ")}` : "";
+
+  // Run all independent queries in parallel for better performance
+  const [
+    [statsRows],
+    [topCitiesRows],
+    [timelineRows],
+    [chargesRows],
+    [dayOfWeekRows],
+    [ageDistributionRows],
+    [sexBreakdownRows],
+    [raceBreakdownRows],
+  ] = await Promise.all([
+    // Stats query
+    bq.query({
+      query: `
+        SELECT
+          COUNT(*) as total,
+          COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) as thisWeek,
+          COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) as thisMonth
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${whereClause}
+      `,
+      params,
+    }),
+    // Top cities query
+    bq.query({
+      query: `
+        SELECT
+          city_town as city,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${whereClause}
+        GROUP BY city_town
+        ORDER BY count DESC
+        LIMIT 10
+      `,
+      params,
+    }),
+    // Timeline query
+    bq.query({
+      query: `
+        SELECT
+          arrest_date as date,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${whereClause}
+        GROUP BY arrest_date
+        ORDER BY arrest_date ASC
+      `,
+      params,
+    }),
+    // Charges query (needs post-processing)
+    bq.query({
+      query: `
+        SELECT charges
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${whereClause}
+      `,
+      params,
+    }),
+    // Day of week query
+    bq.query({
+      query: `
+        SELECT
+          EXTRACT(DAYOFWEEK FROM arrest_date) as day_of_week,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${whereClause}
+        GROUP BY day_of_week
+        ORDER BY day_of_week
+      `,
+      params,
+    }),
+    // Age distribution query
+    bq.query({
+      query: `
+        SELECT
+          CASE
+            WHEN age < 18 THEN '0-17'
+            WHEN age < 25 THEN '18-24'
+            WHEN age < 35 THEN '25-34'
+            WHEN age < 45 THEN '35-44'
+            WHEN age < 55 THEN '45-54'
+            WHEN age < 65 THEN '55-64'
+            ELSE '65+'
+          END as age_range,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${ageWhereClause}
+        GROUP BY age_range
+        ORDER BY
+          CASE age_range
+            WHEN '0-17' THEN 1
+            WHEN '18-24' THEN 2
+            WHEN '25-34' THEN 3
+            WHEN '35-44' THEN 4
+            WHEN '45-54' THEN 5
+            WHEN '55-64' THEN 6
+            WHEN '65+' THEN 7
+          END
+      `,
+      params,
+    }),
+    // Sex breakdown query
+    bq.query({
+      query: `
+        SELECT
+          sex,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${sexWhereClause}
+        GROUP BY sex
+        ORDER BY count DESC
+      `,
+      params,
+    }),
+    // Race breakdown query
+    bq.query({
+      query: `
+        SELECT
+          race,
+          COUNT(*) as count
+        FROM \`xcc-473.police_logs.arrest_logs\`
+        ${raceWhereClause}
+        GROUP BY race
+        ORDER BY count DESC
+      `,
+      params,
+    }),
+  ]);
+
+  // Process results
   const statsRow = statsRows[0] as any;
   const stats = {
     total: Number(statsRow.total),
@@ -165,47 +297,13 @@ async function fetchStats(filters: Filters = {}): Promise<{
     thisMonth: Number(statsRow.thisMonth),
   };
 
-  // Get top cities
-  const topCitiesQuery = `
-    SELECT
-      city_town as city,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${whereClause}
-    GROUP BY city_town
-    ORDER BY count DESC
-    LIMIT 10
-  `;
-
-  const [topCitiesRows] = await bq.query({
-    query: topCitiesQuery,
-    params,
-  });
-
   const topCities = topCitiesRows.map((row: any) => ({
     city: row.city,
     count: Number(row.count),
   }));
 
-  // Get timeline data (grouped by date)
-  const timelineQuery = `
-    SELECT
-      arrest_date as date,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${whereClause}
-    GROUP BY arrest_date
-    ORDER BY arrest_date ASC
-  `;
-
-  const [timelineRows] = await bq.query({
-    query: timelineQuery,
-    params,
-  });
-
   const timelineData = timelineRows.map((row: any) => {
     const serialized = serializeBigQueryRow(row);
-    // Handle date field - could be string or object with value property
     const dateValue =
       typeof serialized.date === "string"
         ? serialized.date
@@ -214,18 +312,6 @@ async function fetchStats(filters: Filters = {}): Promise<{
       date: dateValue,
       count: Number(row.count),
     };
-  });
-
-  // Get top charges by parsing the charges field
-  const chargesQuery = `
-    SELECT charges
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${whereClause}
-  `;
-
-  const [chargesRows] = await bq.query({
-    query: chargesQuery,
-    params,
   });
 
   // Parse charges string and aggregate
@@ -242,29 +328,11 @@ async function fetchStats(filters: Filters = {}): Promise<{
     }
   });
 
-  // Convert to array and sort by count
   const topCharges = Object.entries(chargeCounts)
     .map(([charge, count]) => ({ charge, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 20);
 
-  // Get day of week data
-  const dayOfWeekQuery = `
-    SELECT
-      EXTRACT(DAYOFWEEK FROM arrest_date) as day_of_week,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${whereClause}
-    GROUP BY day_of_week
-    ORDER BY day_of_week
-  `;
-
-  const [dayOfWeekRows] = await bq.query({
-    query: dayOfWeekQuery,
-    params,
-  });
-
-  // Map day numbers to day names (1=Sunday, 7=Saturday in BigQuery)
   const dayNames = [
     "Sunday",
     "Monday",
@@ -282,95 +350,15 @@ async function fetchStats(filters: Filters = {}): Promise<{
     };
   });
 
-  // Get age distribution
-  const ageConditions = [...conditions];
-  ageConditions.push("age IS NOT NULL");
-  const ageWhereClause =
-    ageConditions.length > 0 ? `WHERE ${ageConditions.join(" AND ")}` : "";
-
-  const ageDistributionQuery = `
-    SELECT
-      CASE
-        WHEN age < 18 THEN '0-17'
-        WHEN age < 25 THEN '18-24'
-        WHEN age < 35 THEN '25-34'
-        WHEN age < 45 THEN '35-44'
-        WHEN age < 55 THEN '45-54'
-        WHEN age < 65 THEN '55-64'
-        ELSE '65+'
-      END as age_range,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${ageWhereClause}
-    GROUP BY age_range
-    ORDER BY
-      CASE age_range
-        WHEN '0-17' THEN 1
-        WHEN '18-24' THEN 2
-        WHEN '25-34' THEN 3
-        WHEN '35-44' THEN 4
-        WHEN '45-54' THEN 5
-        WHEN '55-64' THEN 6
-        WHEN '65+' THEN 7
-      END
-  `;
-
-  const [ageDistributionRows] = await bq.query({
-    query: ageDistributionQuery,
-    params,
-  });
-
   const ageDistribution = ageDistributionRows.map((row: any) => ({
     ageRange: row.age_range,
     count: Number(row.count),
   }));
 
-  // Get sex breakdown
-  const sexConditions = [...conditions];
-  sexConditions.push("sex IS NOT NULL");
-  const sexWhereClause =
-    sexConditions.length > 0 ? `WHERE ${sexConditions.join(" AND ")}` : "";
-
-  const sexBreakdownQuery = `
-    SELECT
-      sex,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${sexWhereClause}
-    GROUP BY sex
-    ORDER BY count DESC
-  `;
-
-  const [sexBreakdownRows] = await bq.query({
-    query: sexBreakdownQuery,
-    params,
-  });
-
   const sexBreakdown = sexBreakdownRows.map((row: any) => ({
     sex: row.sex || "Unknown",
     count: Number(row.count),
   }));
-
-  // Get race breakdown
-  const raceConditions = [...conditions];
-  raceConditions.push("race IS NOT NULL");
-  const raceWhereClause =
-    raceConditions.length > 0 ? `WHERE ${raceConditions.join(" AND ")}` : "";
-
-  const raceBreakdownQuery = `
-    SELECT
-      race,
-      COUNT(*) as count
-    FROM \`xcc-473.police_logs.arrest_logs\`
-    ${raceWhereClause}
-    GROUP BY race
-    ORDER BY count DESC
-  `;
-
-  const [raceBreakdownRows] = await bq.query({
-    query: raceBreakdownQuery,
-    params,
-  });
 
   const raceBreakdown = raceBreakdownRows.map((row: any) => ({
     race: row.race || "Unknown",

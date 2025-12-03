@@ -1,7 +1,7 @@
 import Layout from "@/components/Layout";
-import StatsCharts from "@/components/StatsCharts";
-import ArrestHeatmapWrapper from "@/components/ArrestHeatmapWrapper";
-import { getAppData, fetchHeatmapData } from "@/lib/dataService";
+import HeatmapAsync from "@/components/HeatmapAsync";
+import StatsChartsAsync from "@/components/StatsChartsAsync";
+import { fetchArrests } from "@/lib/dataService";
 
 interface HomeProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -22,21 +22,10 @@ export default async function Home({ searchParams }: HomeProps) {
     dateTo,
   };
 
-  const {
-    arrests,
-    total,
-    stats,
-    topCharges,
-    topCities,
-    timelineData,
-    dayOfWeekData,
-    ageDistribution,
-    sexBreakdown,
-    raceBreakdown,
-  } = await getAppData(filters);
-
-  // Fetch heatmap data separately to get all arrests (not limited to 100)
-  const cityCounts = await fetchHeatmapData(filters);
+  // Only fetch arrests data initially for the sidebar
+  // This allows the page to render immediately with the sidebar
+  // Heatmap and stats will load progressively via Suspense
+  const { arrests, total } = await fetchArrests(filters);
 
   // Calculate total pages for sidebar (25 items per page)
   const limit = 25;
@@ -49,20 +38,11 @@ export default async function Home({ searchParams }: HomeProps) {
       totalPages={totalPages}
       filters={filters}
     >
-      {/* Heatmap */}
-      <ArrestHeatmapWrapper cityCounts={cityCounts} />
+      {/* Heatmap - loads progressively with Suspense */}
+      <HeatmapAsync filters={filters} />
 
-      {/* Charts and Stats */}
-      <StatsCharts
-        stats={stats}
-        topCharges={topCharges}
-        topCities={topCities}
-        timelineData={timelineData}
-        dayOfWeekData={dayOfWeekData}
-        ageDistribution={ageDistribution}
-        sexBreakdown={sexBreakdown}
-        raceBreakdown={raceBreakdown}
-      />
+      {/* Charts and Stats - loads progressively with Suspense */}
+      <StatsChartsAsync filters={filters} />
     </Layout>
   );
 }

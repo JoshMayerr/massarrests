@@ -206,10 +206,26 @@ export default function ArrestLogSidebarClient({
       </div>
       <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
         {isLoading ? (
-          <div className="p-4 text-center">
-            <div className="transit-data text-sm font-bold text-gray-600 uppercase">
-              Loading...
-            </div>
+          <div className="divide-y-2 divide-gray-200 animate-pulse">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="p-4 border-l-4 border-l-gray-200">
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-20"></div>
+                </div>
+                <div className="mb-3">
+                  <div className="h-4 bg-gray-200 rounded w-28 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-40"></div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <div className="h-6 bg-gray-200 rounded w-20"></div>
+                  <div className="h-6 bg-gray-200 rounded w-24"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : arrests.length === 0 ? (
           <div className="p-4 text-center">
