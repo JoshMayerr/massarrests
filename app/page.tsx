@@ -22,14 +22,23 @@ export default async function Home({ searchParams }: HomeProps) {
     dateTo,
   };
 
-  const { arrests, stats, topCharges, topCities, timelineData } =
+  const { arrests, total, stats, topCharges, topCities, timelineData } =
     await getAppData(filters);
 
   // Fetch heatmap data separately to get all arrests (not limited to 100)
   const cityCounts = await fetchHeatmapData(filters);
 
+  // Calculate total pages for sidebar (25 items per page)
+  const limit = 25;
+  const totalPages = Math.ceil(total / limit);
+
   return (
-    <Layout arrests={arrests} filters={filters}>
+    <Layout
+      arrests={arrests}
+      total={total}
+      totalPages={totalPages}
+      filters={filters}
+    >
       {/* Heatmap */}
       <ArrestHeatmapWrapper cityCounts={cityCounts} />
 

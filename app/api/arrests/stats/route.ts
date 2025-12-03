@@ -1,7 +1,169 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBigQueryClient } from "@/lib/bigquery";
+import { unstable_cache } from "next/cache";
 
-export const dynamic = "force-dynamic"; // Prevent static caching of this route
+export const revalidate = 3600; // Cache for 1 hour
+
+// Serialize BigQuery results to plain objects for Client Components
+// BigQuery returns DATE/TIMESTAMP fields as objects with a 'value' property
+function serializeBigQueryRow(row: any): any {
+  const serialized: any = {};
+  for (const [key, value] of Object.entries(row)) {
+    // Handle DATE/TIMESTAMP objects from BigQuery
+    if (value && typeof value === "object" && "value" in value) {
+      serialized[key] = value.value;
+    } else {
+      serialized[key] = value;
+    }
+  }
+  return serialized;
+}
+
+async function getStatsData(
+  town: string | null,
+  dateFrom: string | null,
+  dateTo: string | null
+) {
+  // Initialize the authenticated BigQuery client
+  const bq = await getBigQueryClient();
+
+  // Build WHERE clause conditions
+  const conditions: string[] = [];
+  const params: any = {};
+
+  if (town) {
+    // Use LIKE to match variations like "NATICK", "Natick", "NATICK, MA"
+    conditions.push(`UPPER(city_town) LIKE CONCAT(UPPER(@town), '%')`);
+    params.town = town;
+  }
+
+  if (dateFrom) {
+    conditions.push(`arrest_date >= @dateFrom`);
+    params.dateFrom = dateFrom;
+  }
+
+  if (dateTo) {
+    conditions.push(`arrest_date <= @dateTo`);
+    params.dateTo = dateTo;
+  }
+
+  const whereClause =
+    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  // Calculate stats: total, thisWeek, thisMonth
+  const statsQuery = `
+    SELECT
+      COUNT(*) as total,
+      COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) as thisWeek,
+      COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) as thisMonth
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${whereClause}
+  `;
+
+  const [statsRows] = await bq.query({
+    query: statsQuery,
+    params,
+  });
+
+  const statsRow = statsRows[0] as any;
+  const stats = {
+    total: Number(statsRow.total),
+    thisWeek: Number(statsRow.thisWeek),
+    thisMonth: Number(statsRow.thisMonth),
+  };
+
+  // Get top cities
+  const topCitiesQuery = `
+    SELECT
+      city_town as city,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${whereClause}
+    GROUP BY city_town
+    ORDER BY count DESC
+    LIMIT 10
+  `;
+
+  const [topCitiesRows] = await bq.query({
+    query: topCitiesQuery,
+    params,
+  });
+
+  const topCities = topCitiesRows.map((row: any) => ({
+    city: row.city,
+    count: Number(row.count),
+  }));
+
+  // Get timeline data (grouped by date)
+  const timelineQuery = `
+    SELECT
+      arrest_date as date,
+      COUNT(*) as count
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${whereClause}
+    GROUP BY arrest_date
+    ORDER BY arrest_date ASC
+  `;
+
+  const [timelineRows] = await bq.query({
+    query: timelineQuery,
+    params,
+  });
+
+  const timelineData = timelineRows.map((row: any) => {
+    const serialized = serializeBigQueryRow(row);
+    // Handle date field - could be string or object with value property
+    const dateValue =
+      typeof serialized.date === "string"
+        ? serialized.date
+        : serialized.date?.value || row.date?.value || row.date;
+    return {
+      date: dateValue,
+      count: Number(row.count),
+    };
+  });
+
+  // Get top charges by parsing the charges field
+  // We'll fetch all charges and parse them in JavaScript
+  const chargesQuery = `
+    SELECT charges
+    FROM \`xcc-473.police_logs.arrest_logs\`
+    ${whereClause}
+  `;
+
+  const [chargesRows] = await bq.query({
+    query: chargesQuery,
+    params,
+  });
+
+  // Parse charges string and aggregate
+  const chargeCounts: Record<string, number> = {};
+  chargesRows.forEach((row: any) => {
+    if (row.charges) {
+      // Split by comma and trim each charge
+      const charges = row.charges
+        .split(",")
+        .map((c: string) => c.trim())
+        .filter((c: string) => c.length > 0);
+      charges.forEach((charge: string) => {
+        chargeCounts[charge] = (chargeCounts[charge] || 0) + 1;
+      });
+    }
+  });
+
+  // Convert to array and sort by count
+  const topCharges = Object.entries(chargeCounts)
+    .map(([charge, count]) => ({ charge, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20); // Top 20 charges
+
+  return {
+    stats,
+    topCharges,
+    topCities,
+    timelineData,
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,137 +172,22 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
 
-    // Initialize the authenticated BigQuery client
-    const bq = await getBigQueryClient();
+    // Create cache key from all parameters
+    const cacheKey = `stats-${town || ""}-${dateFrom || ""}-${dateTo || ""}`;
 
-    // Build WHERE clause conditions
-    const conditions: string[] = [];
-    const params: any = {};
-
-    if (town) {
-      // Use LIKE to match variations like "NATICK", "Natick", "NATICK, MA"
-      conditions.push(`UPPER(city_town) LIKE CONCAT(UPPER(@town), '%')`);
-      params.town = town;
-    }
-
-    if (dateFrom) {
-      conditions.push(`arrest_date >= @dateFrom`);
-      params.dateFrom = dateFrom;
-    }
-
-    if (dateTo) {
-      conditions.push(`arrest_date <= @dateTo`);
-      params.dateTo = dateTo;
-    }
-
-    const whereClause =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-
-    // Calculate stats: total, thisWeek, thisMonth
-    const statsQuery = `
-      SELECT
-        COUNT(*) as total,
-        COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) as thisWeek,
-        COUNTIF(arrest_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) as thisMonth
-      FROM \`xcc-473.police_logs.arrest_logs\`
-      ${whereClause}
-    `;
-
-    const [statsRows] = await bq.query({
-      query: statsQuery,
-      params,
-    });
-
-    const statsRow = statsRows[0] as any;
-    const stats = {
-      total: Number(statsRow.total),
-      thisWeek: Number(statsRow.thisWeek),
-      thisMonth: Number(statsRow.thisMonth),
-    };
-
-    // Get top cities
-    const topCitiesQuery = `
-      SELECT
-        city_town as city,
-        COUNT(*) as count
-      FROM \`xcc-473.police_logs.arrest_logs\`
-      ${whereClause}
-      GROUP BY city_town
-      ORDER BY count DESC
-      LIMIT 10
-    `;
-
-    const [topCitiesRows] = await bq.query({
-      query: topCitiesQuery,
-      params,
-    });
-
-    const topCities = topCitiesRows.map((row: any) => ({
-      city: row.city,
-      count: Number(row.count),
-    }));
-
-    // Get timeline data (grouped by date)
-    const timelineQuery = `
-      SELECT
-        arrest_date as date,
-        COUNT(*) as count
-      FROM \`xcc-473.police_logs.arrest_logs\`
-      ${whereClause}
-      GROUP BY arrest_date
-      ORDER BY arrest_date ASC
-    `;
-
-    const [timelineRows] = await bq.query({
-      query: timelineQuery,
-      params,
-    });
-
-    const timelineData = timelineRows.map((row: any) => ({
-      date: row.date,
-      count: Number(row.count),
-    }));
-
-    // Get top charges by parsing the charges field
-    // We'll fetch all charges and parse them in JavaScript
-    const chargesQuery = `
-      SELECT charges
-      FROM \`xcc-473.police_logs.arrest_logs\`
-      ${whereClause}
-    `;
-
-    const [chargesRows] = await bq.query({
-      query: chargesQuery,
-      params,
-    });
-
-    // Parse charges string and aggregate
-    const chargeCounts: Record<string, number> = {};
-    chargesRows.forEach((row: any) => {
-      if (row.charges) {
-        // Split by comma and trim each charge
-        const charges = row.charges
-          .split(",")
-          .map((c: string) => c.trim())
-          .filter((c: string) => c.length > 0);
-        charges.forEach((charge: string) => {
-          chargeCounts[charge] = (chargeCounts[charge] || 0) + 1;
-        });
+    // Cache the query results
+    const cachedGetStatsData = unstable_cache(
+      async () => getStatsData(town, dateFrom, dateTo),
+      [cacheKey],
+      {
+        revalidate: 3600, // 1 hour
+        tags: ["stats"],
       }
-    });
+    );
 
-    // Convert to array and sort by count
-    const topCharges = Object.entries(chargeCounts)
-      .map(([charge, count]) => ({ charge, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 20); // Top 20 charges
+    const data = await cachedGetStatsData();
 
-    return NextResponse.json({
-      stats,
-      topCharges,
-      topCities,
-      timelineData,
-    });
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error("BigQuery Stats API Error:", error);
     console.error("Error stack:", error.stack);

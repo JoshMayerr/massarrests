@@ -8,6 +8,9 @@ import FilterButton from "./FilterButton";
 
 interface ArrestLogSidebarClientProps {
   arrests?: ArrestLog[]; // Optional initial data
+  total?: number; // Optional initial total count
+  totalPages?: number; // Optional initial total pages
+  initialPage?: number; // Optional initial page number
   filters?: Filters;
 }
 
@@ -80,16 +83,47 @@ const getChargeBorderColor = (charges: string[]) => {
 
 export default function ArrestLogSidebarClient({
   arrests: initialArrests,
+  total: initialTotal,
+  totalPages: initialTotalPages,
+  initialPage = 1,
   filters,
 }: ArrestLogSidebarClientProps) {
   const [arrests, setArrests] = useState<ArrestLog[]>(initialArrests || []);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(initialTotalPages || 1);
+  const [total, setTotal] = useState(initialTotal || 0);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasInitialData] = useState(
+    !!initialArrests && initialArrests.length > 0
+  );
 
-  // Fetch paginated data
+  // Update state when initial data changes (e.g., filters change on server)
   useEffect(() => {
+    if (initialArrests) {
+      setArrests(initialArrests);
+    }
+    if (initialTotal !== undefined) {
+      setTotal(initialTotal);
+    }
+    if (initialTotalPages !== undefined) {
+      setTotalPages(initialTotalPages);
+    }
+    setCurrentPage(initialPage);
+  }, [initialArrests, initialTotal, initialTotalPages, initialPage]);
+
+  // Fetch paginated data - only fetch if we don't have initial data or if page/filters change
+  useEffect(() => {
+    // Skip initial fetch if we have server-rendered data and we're on page 1 with no filters
+    if (
+      hasInitialData &&
+      currentPage === 1 &&
+      !filters?.town &&
+      !filters?.dateFrom &&
+      !filters?.dateTo
+    ) {
+      return;
+    }
+
     const fetchArrests = async () => {
       setIsLoading(true);
       try {
@@ -125,7 +159,13 @@ export default function ArrestLogSidebarClient({
     };
 
     fetchArrests();
-  }, [currentPage, filters?.town, filters?.dateFrom, filters?.dateTo]);
+  }, [
+    currentPage,
+    filters?.town,
+    filters?.dateFrom,
+    filters?.dateTo,
+    hasInitialData,
+  ]);
 
   // Reset to page 1 when filters change
   useEffect(() => {

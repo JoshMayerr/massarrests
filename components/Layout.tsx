@@ -8,10 +8,18 @@ import { ChevronsUpDown, Edit2, EditIcon } from "lucide-react";
 interface LayoutProps {
   children: ReactNode;
   arrests: ArrestLog[];
+  total?: number;
+  totalPages?: number;
   filters?: Filters;
 }
 
-export default function Layout({ children, arrests, filters }: LayoutProps) {
+export default function Layout({
+  children,
+  arrests,
+  total,
+  totalPages,
+  filters,
+}: LayoutProps) {
   const displayText = filters?.town
     ? filters.town.toUpperCase()
     : "MASSACHUSETTS";
@@ -20,7 +28,13 @@ export default function Layout({ children, arrests, filters }: LayoutProps) {
     <div className="min-h-screen bg-white">
       {/* Sidebar - Fixed position, full height, hidden on mobile */}
       <div className="fixed left-0 top-0 w-80 h-screen hidden lg:block z-10">
-        <ArrestLogSidebarClient arrests={arrests} filters={filters} />
+        <ArrestLogSidebarClient
+          arrests={arrests}
+          total={total}
+          totalPages={totalPages}
+          initialPage={1}
+          filters={filters}
+        />
       </div>
 
       {/* Main Content Area with Header */}
