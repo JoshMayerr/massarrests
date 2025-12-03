@@ -457,8 +457,7 @@ export async function getAppData(filters: Filters = {}): Promise<AppData> {
       raceBreakdown: statsData.raceBreakdown,
     };
   } catch (error) {
-    console.error("Error getting app data:", error);
-    // Return empty data as fallback
+    console.error("Error fetching app data:", error);
     return {
       arrests: [],
       total: 0,

@@ -111,7 +111,7 @@ export default function StatsCharts({
           <div className="font-black text-5xl text-black">
             {stats.thisMonth}
           </div>
-          <div className="transit-data font-bold uppercase">THIS MONTH</div>
+          <div className="transit-data font-bold uppercase">THIS YEAR</div>
         </div>
       </div>
 

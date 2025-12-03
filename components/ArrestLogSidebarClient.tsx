@@ -188,7 +188,8 @@ export default function ArrestLogSidebarClient({
   const endItem = Math.min(currentPage * 25, total);
 
   return (
-    <div className="h-full border-r-2 border-b-2 border-black flex flex-col">
+    <div className="h-full border-r-2 border-b-2 border-black flex flex-col bg-white">
+      {/* Header */}
       <div className="bg-white border-b-2 border-black flex-shrink-0 p-4">
         <h2 className="text-xl font-extrabold uppercase text-black tracking-tight flex items-center justify-between">
           <span className="">ARREST LOGS</span>
@@ -198,7 +199,7 @@ export default function ArrestLogSidebarClient({
         </h2>
         <div className="mt-3">
           <FilterButton filters={filters}>
-            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center relative">
+            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center rounded">
               Filter
             </div>
           </FilterButton>
