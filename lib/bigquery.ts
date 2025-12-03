@@ -1,44 +1,25 @@
 import { BigQuery } from "@google-cloud/bigquery";
 
-const bigquery = new BigQuery({
-  keyFilename: "./keys/service-account.json", 
-  projectId: "xcc-473",
-});
-
-export async function fetchPoliceLogs({ town, dateFrom, dateTo }: any = {}) {
-    console.log("is this getting hit")
-  let query = `
-    SELECT
-      for_date AS date,
-      call_number,
-      time,
-      call_reason,
-      action
-    FROM \`xcc-473.police_logs.daily_logs_fake\`
-    WHERE 1=1
-  `;
-
-  const params: any = {};
-
-  if (town) {
-    query += ` AND LOWER(\`location. raw\`) LIKE @town `;
-    params.town = `%${town.toLowerCase()}%`;
+/**
+ * Creates an authenticated BigQuery client using a Service Account Key.
+ * * PREREQUISITE:
+ * 1. Download your Service Account JSON key.
+ * 2. Base64 encode it: `cat key.json | base64` (Mac/Linux) or via online tool.
+ * 3. Set the output as the `GCP_SERVICE_ACCOUNT_KEY` environment variable in Vercel.
+ */
+export async function getBigQueryClient() {
+  if (!process.env.GCP_SERVICE_ACCOUNT_KEY) {
+    throw new Error("Missing GCP_SERVICE_ACCOUNT_KEY environment variable");
   }
 
-  if (dateFrom) {
-    query += ` AND for_date >= @dateFrom `;
-    params.dateFrom = dateFrom;
-  }
+  // Decode the base64 string back to a JSON object
+  const credentials = JSON.parse(
+    Buffer.from(process.env.GCP_SERVICE_ACCOUNT_KEY, "base64").toString("utf-8")
+  );
 
-  if (dateTo) {
-    query += ` AND for_date <= @dateTo `;
-    params.dateTo = dateTo;
-  }
-
-  query += ` ORDER BY for_date DESC`;
-
-  const options = { query, params };
-  const [rows] = await bigquery.query(options);
-  console.log("✅ BigQuery returned rows:", rows); 
-  return rows;
+  // Initialize BigQuery with the credentials object
+  return new BigQuery({
+    projectId: process.env.GCP_PROJECT_ID,
+    credentials,
+  });
 }

@@ -1,7 +1,7 @@
 import Layout from "@/components/Layout";
-import StatsCharts from "@/components/StatsCharts";
-import ArrestHeatmapWrapper from "@/components/ArrestHeatmapWrapper";
-import { getAppData } from "@/lib/dataService";
+import HeatmapAsync from "@/components/HeatmapAsync";
+import StatsChartsAsync from "@/components/StatsChartsAsync";
+import { fetchArrests } from "@/lib/dataService";
 
 interface HomeProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -22,21 +22,27 @@ export default async function Home({ searchParams }: HomeProps) {
     dateTo,
   };
 
-  const { arrests, stats, incidentBreakdown, topCities, timelineData } =
-    await getAppData(filters);
+  // Only fetch arrests data initially for the sidebar
+  // This allows the page to render immediately with the sidebar
+  // Heatmap and stats will load progressively via Suspense
+  const { arrests, total } = await fetchArrests(filters);
+
+  // Calculate total pages for sidebar (25 items per page)
+  const limit = 25;
+  const totalPages = Math.ceil(total / limit);
 
   return (
-    <Layout arrests={arrests} filters={filters}>
-      {/* Heatmap */}
-      <ArrestHeatmapWrapper arrests={arrests} />
+    <Layout
+      arrests={arrests}
+      total={total}
+      totalPages={totalPages}
+      filters={filters}
+    >
+      {/* Heatmap - loads progressively with Suspense */}
+      <HeatmapAsync filters={filters} />
 
-      {/* Charts and Stats */}
-      <StatsCharts
-        stats={stats}
-        incidentBreakdown={incidentBreakdown}
-        topCities={topCities}
-        timelineData={timelineData}
-      />
+      {/* Charts and Stats - loads progressively with Suspense */}
+      <StatsChartsAsync filters={filters} />
     </Layout>
   );
 }

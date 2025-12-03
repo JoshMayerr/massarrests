@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import ArrestLogSidebarClient from "./ArrestLogSidebarClient";
 import ArrestHeatmap from "./ArrestHeatmap";
 import StatsCharts from "./StatsCharts";
-import { ArrestLog } from "@/lib/mockData";
+import { ArrestLog } from "@/lib/types";
 
 export default function AppLayout() {
   const [arrests, setArrests] = useState<ArrestLog[]>([]);
@@ -13,14 +13,26 @@ export default function AppLayout() {
     thisWeek: 0,
     thisMonth: 0,
   });
-  const [incidentBreakdown, setIncidentBreakdown] = useState<
-    Record<string, number>
-  >({});
+  const [topCharges, setTopCharges] = useState<
+    Array<{ charge: string; count: number }>
+  >([]);
   const [topCities, setTopCities] = useState<
     Array<{ city: string; count: number }>
   >([]);
   const [timelineData, setTimelineData] = useState<
     Array<{ date: string; count: number }>
+  >([]);
+  const [dayOfWeekData, setDayOfWeekData] = useState<
+    Array<{ day: string; count: number }>
+  >([]);
+  const [ageDistribution, setAgeDistribution] = useState<
+    Array<{ ageRange: string; count: number }>
+  >([]);
+  const [sexBreakdown, setSexBreakdown] = useState<
+    Array<{ sex: string; count: number }>
+  >([]);
+  const [raceBreakdown, setRaceBreakdown] = useState<
+    Array<{ race: string; count: number }>
   >([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,9 +49,13 @@ export default function AppLayout() {
 
         setArrests(arrestsData.arrests);
         setStats(statsData.stats);
-        setIncidentBreakdown(statsData.incidentBreakdown);
-        setTopCities(statsData.topCities);
-        setTimelineData(statsData.timelineData);
+        setTopCharges(statsData.topCharges || []);
+        setTopCities(statsData.topCities || []);
+        setTimelineData(statsData.timelineData || []);
+        setDayOfWeekData(statsData.dayOfWeekData || []);
+        setAgeDistribution(statsData.ageDistribution || []);
+        setSexBreakdown(statsData.sexBreakdown || []);
+        setRaceBreakdown(statsData.raceBreakdown || []);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -86,14 +102,18 @@ export default function AppLayout() {
         <div className="flex-1 min-w-0">
           <div className="p-4 lg:p-6 space-y-6 lg:space-y-8">
             {/* Heatmap */}
-            <ArrestHeatmap arrests={arrests} />
+            <ArrestHeatmap cityCounts={topCities} />
 
             {/* Charts and Stats */}
             <StatsCharts
               stats={stats}
-              incidentBreakdown={incidentBreakdown}
+              topCharges={topCharges}
               topCities={topCities}
               timelineData={timelineData}
+              dayOfWeekData={dayOfWeekData}
+              ageDistribution={ageDistribution}
+              sexBreakdown={sexBreakdown}
+              raceBreakdown={raceBreakdown}
             />
           </div>
         </div>
