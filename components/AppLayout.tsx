@@ -22,6 +22,18 @@ export default function AppLayout() {
   const [timelineData, setTimelineData] = useState<
     Array<{ date: string; count: number }>
   >([]);
+  const [dayOfWeekData, setDayOfWeekData] = useState<
+    Array<{ day: string; count: number }>
+  >([]);
+  const [ageDistribution, setAgeDistribution] = useState<
+    Array<{ ageRange: string; count: number }>
+  >([]);
+  const [sexBreakdown, setSexBreakdown] = useState<
+    Array<{ sex: string; count: number }>
+  >([]);
+  const [raceBreakdown, setRaceBreakdown] = useState<
+    Array<{ race: string; count: number }>
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,8 +50,12 @@ export default function AppLayout() {
         setArrests(arrestsData.arrests);
         setStats(statsData.stats);
         setTopCharges(statsData.topCharges || []);
-        setTopCities(statsData.topCities);
-        setTimelineData(statsData.timelineData);
+        setTopCities(statsData.topCities || []);
+        setTimelineData(statsData.timelineData || []);
+        setDayOfWeekData(statsData.dayOfWeekData || []);
+        setAgeDistribution(statsData.ageDistribution || []);
+        setSexBreakdown(statsData.sexBreakdown || []);
+        setRaceBreakdown(statsData.raceBreakdown || []);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -86,7 +102,7 @@ export default function AppLayout() {
         <div className="flex-1 min-w-0">
           <div className="p-4 lg:p-6 space-y-6 lg:space-y-8">
             {/* Heatmap */}
-            <ArrestHeatmap arrests={arrests} />
+            <ArrestHeatmap cityCounts={topCities} />
 
             {/* Charts and Stats */}
             <StatsCharts
@@ -94,6 +110,10 @@ export default function AppLayout() {
               topCharges={topCharges}
               topCities={topCities}
               timelineData={timelineData}
+              dayOfWeekData={dayOfWeekData}
+              ageDistribution={ageDistribution}
+              sexBreakdown={sexBreakdown}
+              raceBreakdown={raceBreakdown}
             />
           </div>
         </div>

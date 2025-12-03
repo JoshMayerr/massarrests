@@ -150,7 +150,7 @@ export default function StatsCharts({
         </div>
 
         {/* Top Cities */}
-        {/* <div className="transit-card border-l-4 border-l-orange-500">
+        <div className="transit-card border-l-4 border-l-orange-500">
           <h3 className="transit-section mb-4">TOP CITIES</h3>
           {citiesData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -185,7 +185,7 @@ export default function StatsCharts({
               </div>
             </div>
           )}
-        </div> */}
+        </div>
 
         {/* Top Charges */}
         <div className="transit-card border-l-4 border-l-green-500">
@@ -216,7 +216,7 @@ export default function StatsCharts({
         </div>
 
         {/* Day of Week */}
-        {/* <div className="transit-card border-l-4 border-l-silver-500">
+        <div className="transit-card border-l-4 border-l-silver-500">
           <h3 className="transit-section mb-4">BY DAY OF WEEK</h3>
           {completeDayOfWeekData.some((d) => d.count > 0) ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -251,7 +251,7 @@ export default function StatsCharts({
               </div>
             </div>
           )}
-        </div> */}
+        </div>
       </div>
 
       {/* Additional Charts Grid */}
