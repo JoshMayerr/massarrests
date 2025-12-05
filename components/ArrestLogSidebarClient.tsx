@@ -272,7 +272,7 @@ export default function ArrestLogSidebarClient({
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex-1">
                       <div className="text-sm font-extrabold uppercase text-black truncate">
-                        {arrest.first_name} {arrest.last_name}
+                        {arrest.first_name?.[0] ? `${arrest.first_name[0]}. ` : ''}{arrest.last_name || ''}
                       </div>
                       <div className="text-xs font-bold text-gray-600 uppercase">
                         {arrest.age} • {arrest.sex} • {arrest.race}

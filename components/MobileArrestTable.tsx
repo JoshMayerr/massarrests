@@ -282,7 +282,7 @@ export default function MobileArrestTable({
                   >
                     <td className="p-3 border-r border-gray-300">
                       <div className="text-xs font-extrabold uppercase text-black">
-                        {arrest.first_name} {arrest.last_name}
+                        {arrest.first_name?.[0] ? `${arrest.first_name[0]}. ` : ''}{arrest.last_name || ''}
                       </div>
                     </td>
                     <td className="p-3 border-r border-gray-300">
