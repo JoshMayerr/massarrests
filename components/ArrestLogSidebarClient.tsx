@@ -5,6 +5,7 @@ import { ArrestLog } from "@/lib/types";
 import { format } from "date-fns";
 import { Filters } from "@/lib/dataService";
 import FilterButton from "./FilterButton";
+import ArrestDetailDrawer from "./ArrestDetailDrawer";
 
 interface ArrestLogSidebarClientProps {
   arrests?: ArrestLog[]; // Optional initial data
@@ -89,6 +90,7 @@ export default function ArrestLogSidebarClient({
   filters,
 }: ArrestLogSidebarClientProps) {
   const [arrests, setArrests] = useState<ArrestLog[]>(initialArrests || []);
+  const [selectedArrest, setSelectedArrest] = useState<ArrestLog | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(initialTotalPages || 1);
   const [total, setTotal] = useState(initialTotal || 0);
@@ -190,21 +192,18 @@ export default function ArrestLogSidebarClient({
   return (
     <div className="h-full border-r-2 border-b-2 border-black flex flex-col bg-white">
       {/* Header */}
-      <div className="bg-white border-b-2 border-black flex-shrink-0 p-4">
-        <h2 className="text-xl font-extrabold uppercase text-black tracking-tight flex items-center justify-between">
-          <span className="">ARREST LOGS</span>
-          <span className="text-sm font-bold uppercase bg-black text-white px-2 py-1">
-            {total}
-          </span>
-        </h2>
+      <div className="bg-white border-b-2 border-black shrink-0 p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold uppercase text-black tracking-tight">ARREST LOGS</h2>
+          <span className="text-sm font-bold uppercase bg-black text-white px-2 py-1 rounded">{total}</span>
+        </div>
         <div className="mt-3">
           <FilterButton filters={filters}>
-            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center rounded">
-              Filter
-            </div>
+            <div className="w-full px-4 py-2 border-2 border-black bg-black text-white font-bold uppercase hover:bg-gray-800 transition-colors text-sm text-center rounded">Filter</div>
           </FilterButton>
         </div>
       </div>
+      
       <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
         {isLoading ? (
           <div className="divide-y-2 divide-gray-200 animate-pulse">
@@ -235,7 +234,7 @@ export default function ArrestLogSidebarClient({
             </div>
           </div>
         ) : (
-          <div className="divide-y-2 divide-black">
+          <div className="divide-y-2 divide-black px-2">
             {arrests.map((arrest, index) => {
               // Parse date from BigQuery DATE format: { value: "YYYY-MM-DD" }
               let arrestDate: Date | null = null;
@@ -266,57 +265,41 @@ export default function ArrestLogSidebarClient({
               return (
                 <div
                   key={`${arrest.arrest_id}-${arrest.arrest_date}-${arrest.first_name}-${arrest.last_name}-${index}`}
-                  className={`p-4 hover:bg-gray-50 transition-colors border-l-4 ${chargeBorderColor} hover:shadow-sm`}
+                  className={`p-3 mb-2 bg-white hover:bg-gray-50 transition-colors border-l-4 ${chargeBorderColor} shadow-sm rounded`}
+                  onClick={() => setSelectedArrest(arrest)}
                 >
                   {/* Header with name and date */}
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="flex justify-between items-center mb-2">
                     <div className="flex-1">
-                      <div className="transit-data font-black text-sm uppercase text-black">
+                      <div className="text-sm font-extrabold uppercase text-black truncate">
                         {arrest.first_name} {arrest.last_name}
                       </div>
-                      <div className="transit-data text-xs font-bold text-gray-600 uppercase">
+                      <div className="text-xs font-bold text-gray-600 uppercase">
                         {arrest.age} • {arrest.sex} • {arrest.race}
                       </div>
                     </div>
-                    <span className="transit-data text-sm font-black text-black ml-2">
-                      {isValidDate && arrestDate
-                        ? format(arrestDate, "MMM dd, yyyy").toUpperCase()
-                        : "N/A"}
+                    <span className="text-sm font-black text-black ml-2">
+                      {isValidDate && arrestDate ? format(arrestDate, "MMM dd, yyyy").toUpperCase() : "N/A"}
                     </span>
                   </div>
-
+                  
                   {/* Location */}
-                  <div className="mb-3">
-                    <div className="transit-data font-black text-sm uppercase text-black">
+                  <div className="mb-2">
+                    <div className="text-sm font-extrabold uppercase text-black">
                       {arrest.city_town}
-                      {arrest.zip_code && (
-                        <span className="text-gray-600 ml-1">
-                          • {arrest.zip_code}
-                        </span>
-                      )}
+                      {arrest.zip_code && <span className="text-gray-600 ml-1">• {arrest.zip_code}</span>}
                     </div>
-                    {arrest.street_line && (
-                      <div className="transit-data text-xs font-bold text-gray-600 uppercase">
-                        {arrest.street_line}
-                      </div>
-                    )}
+                    {arrest.street_line && <div className="text-xs text-gray-600 uppercase">{arrest.street_line}</div>}
                   </div>
-
+                  
                   {/* Charges */}
-                  <div className="flex flex-wrap gap-1">
-                    {charges.slice(0, 2).map((charge, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 text-xs bg-black text-white font-bold uppercase border border-black"
-                      >
+                  <div className="flex flex-wrap gap-2">
+                    {charges.slice(0, 2).map((charge, i) => (
+                      <span key={i} className="px-2 py-1 text-xs bg-black text-white font-bold uppercase border border-black rounded">
                         {charge}
                       </span>
                     ))}
-                    {charges.length > 2 && (
-                      <span className="px-2 py-1 text-xs bg-gray-600 text-white font-bold uppercase border border-black">
-                        +{charges.length - 2} MORE
-                      </span>
-                    )}
+                    {charges.length > 2 && <span className="px-2 py-1 text-xs bg-gray-600 text-white font-bold uppercase border border-black rounded">+{charges.length - 2} MORE</span>}
                   </div>
                 </div>
               );
@@ -326,7 +309,7 @@ export default function ArrestLogSidebarClient({
       </div>
 
       {/* Pagination Footer - Fixed at bottom */}
-      <div className="bg-white border-t-2 border-black flex-shrink-0 p-4">
+      <div className="bg-white border-t-2 border-black shrink-0 p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="transit-data text-xs font-bold text-gray-600 uppercase">
             Showing {startItem}-{endItem} of {total}
@@ -360,6 +343,7 @@ export default function ArrestLogSidebarClient({
           </button>
         </div>
       </div>
+      <ArrestDetailDrawer arrest={selectedArrest} open={Boolean(selectedArrest)} onClose={() => setSelectedArrest(null)} />
     </div>
   );
 }
