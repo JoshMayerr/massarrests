@@ -203,7 +203,7 @@ export default function ArrestLogSidebarClient({
           </FilterButton>
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto sidebar-scrollbar bg-white">
         {isLoading ? (
           <div className="divide-y-2 divide-gray-200 animate-pulse">
@@ -234,7 +234,7 @@ export default function ArrestLogSidebarClient({
             </div>
           </div>
         ) : (
-          <div className="divide-y-2 divide-black px-2">
+          <div className="divide-y-2 divide-black">
             {arrests.map((arrest, index) => {
               // Parse date from BigQuery DATE format: { value: "YYYY-MM-DD" }
               let arrestDate: Date | null = null;
@@ -265,7 +265,7 @@ export default function ArrestLogSidebarClient({
               return (
                 <div
                   key={`${arrest.arrest_id}-${arrest.arrest_date}-${arrest.first_name}-${arrest.last_name}-${index}`}
-                  className={`p-3 mb-2 bg-white hover:bg-gray-50 transition-colors border-l-4 ${chargeBorderColor} shadow-sm rounded`}
+                  className={`px-4 py-3 bg-white hover:bg-gray-50 transition-colors border-l-4 ${chargeBorderColor} cursor-pointer`}
                   onClick={() => setSelectedArrest(arrest)}
                 >
                   {/* Header with name and date */}
@@ -282,7 +282,7 @@ export default function ArrestLogSidebarClient({
                       {isValidDate && arrestDate ? format(arrestDate, "MMM dd, yyyy").toUpperCase() : "N/A"}
                     </span>
                   </div>
-                  
+
                   {/* Location */}
                   <div className="mb-2">
                     <div className="text-sm font-extrabold uppercase text-black">
@@ -291,7 +291,7 @@ export default function ArrestLogSidebarClient({
                     </div>
                     {arrest.street_line && <div className="text-xs text-gray-600 uppercase">{arrest.street_line}</div>}
                   </div>
-                  
+
                   {/* Charges */}
                   <div className="flex flex-wrap gap-2">
                     {charges.slice(0, 2).map((charge, i) => (
