@@ -12,6 +12,9 @@ export default function AppLayout() {
     total: 0,
     thisWeek: 0,
     thisMonth: 0,
+    totalCharges: 0,
+    averageAge: 0,
+    avgChargesPerArrest: 0,
   });
   const [topCharges, setTopCharges] = useState<
     Array<{ charge: string; count: number }>
