@@ -34,6 +34,7 @@ export default function AppLayout() {
   const [raceBreakdown, setRaceBreakdown] = useState<
     Array<{ race: string; count: number }>
   >([]);
+  const [statsData, setStatsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,17 +46,18 @@ export default function AppLayout() {
         ]);
 
         const arrestsData = await arrestsRes.json();
-        const statsData = await statsRes.json();
+        const statsDataResponse = await statsRes.json();
 
         setArrests(arrestsData.arrests);
-        setStats(statsData.stats);
-        setTopCharges(statsData.topCharges || []);
-        setTopCities(statsData.topCities || []);
-        setTimelineData(statsData.timelineData || []);
-        setDayOfWeekData(statsData.dayOfWeekData || []);
-        setAgeDistribution(statsData.ageDistribution || []);
-        setSexBreakdown(statsData.sexBreakdown || []);
-        setRaceBreakdown(statsData.raceBreakdown || []);
+        setStats(statsDataResponse.stats);
+        setTopCharges(statsDataResponse.topCharges || []);
+        setTopCities(statsDataResponse.topCities || []);
+        setTimelineData(statsDataResponse.timelineData || []);
+        setDayOfWeekData(statsDataResponse.dayOfWeekData || []);
+        setAgeDistribution(statsDataResponse.ageDistribution || []);
+        setSexBreakdown(statsDataResponse.sexBreakdown || []);
+        setRaceBreakdown(statsDataResponse.raceBreakdown || []);
+        setStatsData(statsDataResponse);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -108,12 +110,15 @@ export default function AppLayout() {
             <StatsCharts
               stats={stats}
               topCharges={topCharges}
-              topCities={topCities}
               timelineData={timelineData}
-              dayOfWeekData={dayOfWeekData}
               ageDistribution={ageDistribution}
               sexBreakdown={sexBreakdown}
               raceBreakdown={raceBreakdown}
+              chargeCategories={statsData?.chargeCategories}
+              chargeTrends={statsData?.chargeTrends}
+              chargesByAge={statsData?.chargesByAge}
+              chargesByRace={statsData?.chargesByRace}
+              chargesBySex={statsData?.chargesBySex}
             />
           </div>
         </div>

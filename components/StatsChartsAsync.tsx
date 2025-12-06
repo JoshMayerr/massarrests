@@ -15,12 +15,15 @@ async function StatsChartsData({ filters }: StatsChartsAsyncProps) {
     <StatsCharts
       stats={statsData.stats}
       topCharges={statsData.topCharges}
-      topCities={statsData.topCities}
       timelineData={statsData.timelineData}
-      dayOfWeekData={statsData.dayOfWeekData}
       ageDistribution={statsData.ageDistribution}
       sexBreakdown={statsData.sexBreakdown}
       raceBreakdown={statsData.raceBreakdown}
+      chargeCategories={statsData.chargeCategories}
+      chargeTrends={statsData.chargeTrends}
+      chargesByAge={statsData.chargesByAge}
+      chargesByRace={statsData.chargesByRace}
+      chargesBySex={statsData.chargesBySex}
     />
   );
 }
