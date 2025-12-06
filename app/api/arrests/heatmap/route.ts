@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getBigQueryClient } from "@/lib/bigquery";
 import { unstable_cache } from "next/cache";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 3600; // Cache for 1 hour
 
 async function getHeatmapData(

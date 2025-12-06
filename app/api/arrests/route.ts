@@ -3,6 +3,7 @@ import { getBigQueryClient } from "@/lib/bigquery";
 import { ArrestLog, ArrestApiResponse } from "@/lib/types";
 import { unstable_cache } from "next/cache";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 3600; // Cache for 1 hour
 
 // Serialize BigQuery results to plain objects for Client Components
