@@ -463,188 +463,305 @@ export default function StatsCharts({
           chargesBySex.length > 0) && (
           <div className="space-y-8">
             {/* Charges by Age */}
-            {chargesByAge.length > 0 && (
-              <div className="p-4 border border-gray-300 rounded">
-                <h3 className="text-lg font-semibold mb-4">
-                  Top Charges by Age
-                </h3>
-                <ResponsiveContainer width="100%" height={500}>
-                  <BarChart
-                    data={chargesByAge.slice(0, 15)}
-                    margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="charge"
-                      angle={-45}
-                      textAnchor="end"
-                      height={90}
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(charge: string) =>
-                        truncateCharge(charge, 45)
-                      }
-                    >
-                      <Label
-                        value="Charge"
-                        position="insideBottom"
-                        offset={-5}
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </XAxis>
-                    <YAxis tickFormatter={formatNumber}>
-                      <Label
-                        value="Count"
-                        angle={-90}
-                        position="insideLeft"
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </YAxis>
-                    <Tooltip />
-                    <Bar dataKey="count">
-                      {chargesByAge.slice(0, 15).map((entry, index) => {
-                        const ageColors: Record<string, string> = {
-                          "0-17": "#ef4444",
-                          "18-24": "#f59e0b",
-                          "25-34": "#eab308",
-                          "35-44": "#10b981",
-                          "45-54": "#3b82f6",
-                          "55-64": "#8b5cf6",
-                          "65+": "#ec4899",
-                        };
-                        return (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={ageColors[entry.ageRange] || "#8884d8"}
+            {chargesByAge.length > 0 &&
+              (() => {
+                const chartData = chargesByAge.slice(0, 15);
+
+                // Age color mapping
+                const ageColors: Record<string, string> = {
+                  "0-17": "#ef4444",
+                  "18-24": "#f59e0b",
+                  "25-34": "#eab308",
+                  "35-44": "#10b981",
+                  "45-54": "#3b82f6",
+                  "55-64": "#8b5cf6",
+                  "65+": "#ec4899",
+                };
+
+                // Age label mapping for legend
+                const ageLabels: Record<string, string> = {
+                  "0-17": "0-17",
+                  "18-24": "18-24",
+                  "25-34": "25-34",
+                  "35-44": "35-44",
+                  "45-54": "45-54",
+                  "55-64": "55-64",
+                  "65+": "65+",
+                };
+
+                // Get unique age ranges in the chart data for legend
+                const uniqueAges = Array.from(
+                  new Set(chartData.map((entry) => entry.ageRange))
+                );
+
+                return (
+                  <div className="p-4 border border-gray-300 rounded">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Top Charges by Age
+                    </h3>
+                    <ResponsiveContainer width="100%" height={500}>
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="charge"
+                          angle={-45}
+                          textAnchor="end"
+                          height={90}
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(charge: string) =>
+                            truncateCharge(charge, 45)
+                          }
+                        >
+                          <Label
+                            value="Charge"
+                            position="insideBottom"
+                            offset={-5}
+                            style={{ textAnchor: "middle" }}
                           />
-                        );
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+                        </XAxis>
+                        <YAxis tickFormatter={formatNumber}>
+                          <Label
+                            value="Count"
+                            angle={-90}
+                            position="insideLeft"
+                            style={{ textAnchor: "middle" }}
+                          />
+                        </YAxis>
+                        <Tooltip />
+                        <Bar dataKey="count">
+                          {chartData.map((entry, index) => {
+                            return (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={ageColors[entry.ageRange] || "#8884d8"}
+                              />
+                            );
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {/* Custom Legend */}
+                    <div className="flex flex-wrap gap-4 mt-4 justify-center">
+                      {uniqueAges.map((age) => (
+                        <div key={age} className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded"
+                            style={{
+                              backgroundColor: ageColors[age] || "#8884d8",
+                            }}
+                          />
+                          <span className="text-sm text-gray-700">
+                            {ageLabels[age] || age}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
             {/* Charges by Race */}
-            {chargesByRace.length > 0 && (
-              <div className="p-4 border border-gray-300 rounded">
-                <h3 className="text-lg font-semibold mb-4">
-                  Top Charges by Race
-                </h3>
-                <ResponsiveContainer width="100%" height={600}>
-                  <BarChart
-                    data={chargesByRace.slice(0, 15)}
-                    margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="charge"
-                      angle={-45}
-                      textAnchor="end"
-                      height={90}
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(charge: string) =>
-                        truncateCharge(charge, 45)
-                      }
-                    >
-                      <Label
-                        value="Charge"
-                        position="insideBottom"
-                        offset={-5}
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </XAxis>
-                    <YAxis tickFormatter={formatNumber}>
-                      <Label
-                        value="Count"
-                        angle={-90}
-                        position="insideLeft"
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </YAxis>
-                    <Tooltip />
-                    <Bar dataKey="count">
-                      {chargesByRace.slice(0, 15).map((entry, index) => {
-                        const raceColors: Record<string, string> = {
-                          WHITE: "#3b82f6",
-                          BLACK: "#1f2937",
-                          HISPANIC: "#f59e0b",
-                          ASIAN: "#10b981",
-                          "NATIVE AMERICAN": "#8b5cf6",
-                          OTHER: "#6b7280",
-                        };
-                        const raceKey = entry.race.toUpperCase();
-                        return (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={raceColors[raceKey] || "#8884d8"}
+            {chargesByRace.length > 0 &&
+              (() => {
+                // Filter out unknown races (U) and prepare data
+                const filteredChargesByRace = chargesByRace.filter(
+                  (entry) => entry.race.toUpperCase() !== "U"
+                );
+                const chartData = filteredChargesByRace.slice(0, 15);
+
+                // Race color mapping using single-letter codes
+                const raceColors: Record<string, string> = {
+                  W: "#3b82f6", // White - blue
+                  B: "#1f2937", // Black - dark gray
+                  H: "#f59e0b", // Hispanic - orange
+                  A: "#10b981", // Asian - green
+                  N: "#8b5cf6", // Native American - purple
+                  O: "#6b7280", // Other - gray
+                };
+
+                // Race label mapping for legend
+                const raceLabels: Record<string, string> = {
+                  W: "White",
+                  B: "Black",
+                  H: "Hispanic",
+                  A: "Asian",
+                  N: "Native American",
+                  O: "Other",
+                };
+
+                // Get unique races in the chart data for legend
+                const uniqueRaces = Array.from(
+                  new Set(chartData.map((entry) => entry.race.toUpperCase()))
+                ).filter((race) => race !== "U");
+
+                return (
+                  <div className="p-4 border border-gray-300 rounded">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Top Charges by Race
+                    </h3>
+                    <ResponsiveContainer width="100%" height={600}>
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="charge"
+                          angle={-45}
+                          textAnchor="end"
+                          height={90}
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(charge: string) =>
+                            truncateCharge(charge, 45)
+                          }
+                        >
+                          <Label
+                            value="Charge"
+                            position="insideBottom"
+                            offset={-5}
+                            style={{ textAnchor: "middle" }}
                           />
-                        );
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+                        </XAxis>
+                        <YAxis tickFormatter={formatNumber}>
+                          <Label
+                            value="Count"
+                            angle={-90}
+                            position="insideLeft"
+                            style={{ textAnchor: "middle" }}
+                          />
+                        </YAxis>
+                        <Tooltip />
+                        <Bar dataKey="count">
+                          {chartData.map((entry, index) => {
+                            const raceKey = entry.race.toUpperCase();
+                            return (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={raceColors[raceKey] || "#8884d8"}
+                              />
+                            );
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {/* Custom Legend */}
+                    <div className="flex flex-wrap gap-4 mt-4 justify-center">
+                      {uniqueRaces.map((race) => (
+                        <div key={race} className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded"
+                            style={{
+                              backgroundColor: raceColors[race] || "#8884d8",
+                            }}
+                          />
+                          <span className="text-sm text-gray-700">
+                            {raceLabels[race] || race}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
             {/* Charges by Sex */}
-            {chargesBySex.length > 0 && (
-              <div className="p-4 border border-gray-300 rounded">
-                <h3 className="text-lg font-semibold mb-4">
-                  Top Charges by Sex
-                </h3>
-                <ResponsiveContainer width="100%" height={500}>
-                  <BarChart
-                    data={chargesBySex.slice(0, 15)}
-                    margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="charge"
-                      angle={-45}
-                      textAnchor="end"
-                      height={90}
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(charge: string) =>
-                        truncateCharge(charge, 45)
-                      }
-                    >
-                      <Label
-                        value="Charge"
-                        position="insideBottom"
-                        offset={-5}
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </XAxis>
-                    <YAxis tickFormatter={formatNumber}>
-                      <Label
-                        value="Count"
-                        angle={-90}
-                        position="insideLeft"
-                        style={{ textAnchor: "middle" }}
-                      />
-                    </YAxis>
-                    <Tooltip />
-                    <Bar dataKey="count">
-                      {chargesBySex.slice(0, 15).map((entry, index) => {
-                        const sexColors: Record<string, string> = {
-                          M: "#3b82f6",
-                          F: "#ec4899",
-                          MALE: "#3b82f6",
-                          FEMALE: "#ec4899",
-                        };
-                        const sexKey = entry.sex.toUpperCase();
-                        return (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={sexColors[sexKey] || "#8884d8"}
+            {chargesBySex.length > 0 &&
+              (() => {
+                const chartData = chargesBySex.slice(0, 15);
+
+                // Sex color mapping
+                const sexColors: Record<string, string> = {
+                  M: "#3b82f6",
+                  F: "#ec4899",
+                  MALE: "#3b82f6",
+                  FEMALE: "#ec4899",
+                };
+
+                // Sex label mapping for legend
+                const sexLabels: Record<string, string> = {
+                  M: "Male",
+                  F: "Female",
+                  MALE: "Male",
+                  FEMALE: "Female",
+                };
+
+                // Get unique sex values in the chart data for legend
+                const uniqueSexes = Array.from(
+                  new Set(chartData.map((entry) => entry.sex.toUpperCase()))
+                );
+
+                return (
+                  <div className="p-4 border border-gray-300 rounded">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Top Charges by Sex
+                    </h3>
+                    <ResponsiveContainer width="100%" height={500}>
+                      <BarChart
+                        data={chartData}
+                        margin={{ top: 10, right: 20, bottom: 110, left: 20 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="charge"
+                          angle={-45}
+                          textAnchor="end"
+                          height={90}
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(charge: string) =>
+                            truncateCharge(charge, 45)
+                          }
+                        >
+                          <Label
+                            value="Charge"
+                            position="insideBottom"
+                            offset={-5}
+                            style={{ textAnchor: "middle" }}
                           />
-                        );
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+                        </XAxis>
+                        <YAxis tickFormatter={formatNumber}>
+                          <Label
+                            value="Count"
+                            angle={-90}
+                            position="insideLeft"
+                            style={{ textAnchor: "middle" }}
+                          />
+                        </YAxis>
+                        <Tooltip />
+                        <Bar dataKey="count">
+                          {chartData.map((entry, index) => {
+                            const sexKey = entry.sex.toUpperCase();
+                            return (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={sexColors[sexKey] || "#8884d8"}
+                              />
+                            );
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {/* Custom Legend */}
+                    <div className="flex flex-wrap gap-4 mt-4 justify-center">
+                      {uniqueSexes.map((sex) => (
+                        <div key={sex} className="flex items-center gap-2">
+                          <div
+                            className="w-4 h-4 rounded"
+                            style={{
+                              backgroundColor: sexColors[sex] || "#8884d8",
+                            }}
+                          />
+                          <span className="text-sm text-gray-700">
+                            {sexLabels[sex] || sex}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
           </div>
         )}
       </div>
