@@ -64,7 +64,7 @@ export default function Layout({
               </div>
             </div>
             <p className="transit-data font-bold text-xs sm:text-sm text-black uppercase">
-              MAPPING OF POLICE LOGS IN MASSACHUSETTS ACROSS 200 CITIES AND
+              MAPPING OF ARREST LOGS IN MASSACHUSETTS ACROSS 200 CITIES AND
               TOWNS
             </p>
           </div>

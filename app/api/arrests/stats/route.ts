@@ -58,6 +58,57 @@ function categorizeCharge(charge: string): string {
   return "Other";
 }
 
+// Charge name mappings for better readability
+const chargeMappings: Record<string, string> = {
+  "OP MV": "Operating Motor Vehicle",
+  "OP MV WITH": "Operating Motor Vehicle With Suspended License",
+  "OUI": "Operating Under the Influence",
+  "OUI LIQUOR": "Operating Under the Influence (Liquor)",
+  "OUI-LIQUOR": "Operating Under the Influence (Liquor)",
+  "OUI-LIQUOR OR .08%": "Operating Under the Influence (Liquor or .08%)",
+  "OUI LIQUOR C90 S24": "Operating Under the Influence (Liquor)",
+  "POSSESS CLASS B": "Possession Class B Substance",
+  "POSSESS CLASS A": "Possession Class A Substance",
+  "POSSESS CLASS C": "Possession Class C Substance",
+  "POSSESS CLASS D": "Possession Class D Substance",
+  "LICENSE SUSPENDED": "License Suspended",
+  "LICENSE REVOKED": "License Revoked",
+  "DUI": "Driving Under the Influence",
+  "DWI": "Driving While Intoxicated",
+};
+
+// Normalize charge names - groups warrant-related charges and maps abbreviations
+function normalizeCharge(charge: string): string {
+  const upperCharge = charge.toUpperCase().trim();
+
+  // Group all warrant-related charges into "WARRANT"
+  if (upperCharge.includes("WARRANT")) {
+    return "WARRANT";
+  }
+
+  // Check for exact matches first (case-insensitive)
+  const exactMatch = Object.keys(chargeMappings).find(
+    (key) => upperCharge === key.toUpperCase()
+  );
+  if (exactMatch) {
+    return chargeMappings[exactMatch];
+  }
+
+  // Check for partial matches, prioritizing longer keys first
+  // Sort keys by length (longest first) to match more specific patterns first
+  const sortedKeys = Object.keys(chargeMappings).sort((a, b) => b.length - a.length);
+  for (const key of sortedKeys) {
+    const upperKey = key.toUpperCase();
+    // Match if the charge starts with the key (for abbreviations like "OP MV WITH")
+    if (upperCharge.startsWith(upperKey) || upperCharge === upperKey) {
+      return chargeMappings[key];
+    }
+  }
+
+  // Return original charge if no mapping found
+  return charge;
+}
+
 async function getStatsData(
   town: string | null,
   dateFrom: string | null,
@@ -218,7 +269,8 @@ async function getStatsData(
         .filter((c: string) => c.length > 0);
       totalCharges += charges.length;
       charges.forEach((charge: string) => {
-        chargeCounts[charge] = (chargeCounts[charge] || 0) + 1;
+        const normalizedCharge = normalizeCharge(charge);
+        chargeCounts[normalizedCharge] = (chargeCounts[normalizedCharge] || 0) + 1;
         const category = categorizeCharge(charge);
         chargeCategoryCounts[category] = (chargeCategoryCounts[category] || 0) + 1;
       });
